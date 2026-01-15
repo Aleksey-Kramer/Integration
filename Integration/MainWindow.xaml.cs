@@ -1,5 +1,4 @@
 ﻿using System.Windows;
-using Integration.ViewModels;
 
 namespace Integration;
 
@@ -8,8 +7,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-
-        // Главный ViewModel приложения
-        DataContext = new MainViewModel(App.EventBus, App.AgentManager, App.Parameters);
     }
+
+    // summary: WPF-окно-хост. Инициализирует XAML и НЕ создаёт ViewModel.
+    //          DataContext задаётся в точке композиции (App.OnStartup), чтобы не ломать DI.
 }

@@ -263,4 +263,9 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
 
     private void OnPropertyChanged([CallerMemberName] string? propName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+
+    // summary: ViewModel экрана деталей агента. Отвечает за отображение статуса агента, логов,
+    //          и индикаторов (API/DB), подписывается на события EventBus и читает/обновляет RuntimeStateStore
+    //          для сохранения состояния (например, API ok/error) между открытиями экрана.
 }
+

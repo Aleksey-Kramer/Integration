@@ -15,11 +15,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\projects\\UzEx Integration\\Integration\\Integration\\Integration.csproj",
+      "projectUniqueName": "E:\\projects\\UzEx Integration\\Github\\Integration\\Integration\\Integration.csproj",
       "projectName": "Integration",
-      "projectPath": "E:\\projects\\UzEx Integration\\Integration\\Integration\\Integration.csproj",
+      "projectPath": "E:\\projects\\UzEx Integration\\Github\\Integration\\Integration\\Integration.csproj",
       "packagesPath": "C:\\Users\\a.kramer\\.nuget\\packages\\",
-      "outputPath": "E:\\projects\\UzEx Integration\\Integration\\Integration\\obj\\",
+      "outputPath": "E:\\projects\\UzEx Integration\\Github\\Integration\\Integration\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
