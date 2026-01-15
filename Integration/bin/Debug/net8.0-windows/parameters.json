@@ -1,0 +1,57 @@
+{
+  "app": {
+    "env": "dev",
+    "timezone": "Asia/Tashkent"
+  },
+
+  "http": {
+    "timeout_seconds": 30
+  },
+
+  "logging": {
+    "file_path": "runtime/log.txt"
+  },
+
+  "services": {
+    "uzstandart": {
+      "base_url": "http://10.190.7.22:55550",
+      "endpoint": "/api/default/certificate",
+      "auth_bearer": "0636cc6fc3e77d2d2240afa6b7f0bd85",
+      "http_timeout_seconds": 30
+    },
+
+    "timv": {
+      "base_url": "https://operator.timv.uz/api/v1",
+      "uuid": "9326ab16-89f3-11ef-ad94-000c29c5dc55",
+      "key": "$2y$13$7To1eSkxu4gzM7NPzwR0iOfbOib.3x1kkJXjtGYjudKL9HRe3j1FK",
+      "default_method": "EXCHANGE_ORG_DEBTOR",
+      "default_table": "org_debtor",
+      "poll_minutes": 30,
+      "http_timeout_seconds": 30,
+      "is_live": 1
+    },
+
+    "pharm_agency": {
+      "base_url": "https://api.pharmagency.uz",
+      "gxp_base_url": "https://api.gxp.pharmagency.uz",
+      "login": "xarid_pharma_uz",
+      "password": "1K3!oHl9#J0#Ec@I2"
+    }
+  },
+
+  "agents": {
+    "uzstandart": {
+      "enabled": true,
+      "service": "uzstandart",
+      "display_name": "TIMV UzStandart",
+      "schedule": {
+        "every_seconds": 600
+      },
+      "paging": {
+        "start_page": 1,
+        "per_page": 10,
+        "max_pages_per_tick": 1
+      }
+    }
+  }
+}

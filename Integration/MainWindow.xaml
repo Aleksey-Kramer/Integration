@@ -1,0 +1,595 @@
+﻿<Window x:Class="Integration.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Integration"
+        xmlns:vm="clr-namespace:Integration.ViewModels"
+        mc:Ignorable="d"
+        Title="Integration"
+        Width="1600" Height="900"
+        MinWidth="1200" MinHeight="720"
+        WindowStartupLocation="CenterScreen"
+        Background="#F3F6FF">
+
+    <Window.Resources>
+
+        <!-- ====== Palette (match design) ====== -->
+        <SolidColorBrush x:Key="BgApp" Color="#F3F6FF"/>
+        <SolidColorBrush x:Key="CardBg" Color="#D7E0F4"/>
+        <SolidColorBrush x:Key="CardStroke" Color="#B6C3E6"/>
+
+        <SolidColorBrush x:Key="TextPrimary" Color="#0B0B0B"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#4B5563"/>
+
+        <SolidColorBrush x:Key="BrushActive" Color="#2DB95F"/>
+        <SolidColorBrush x:Key="BrushPaused" Color="#D87314"/>
+        <SolidColorBrush x:Key="BrushStopped" Color="#D80000"/>
+        <SolidColorBrush x:Key="BrushBlue" Color="#0B52FF"/>
+
+        <SolidColorBrush x:Key="BrushRedHover" Color="#B10000"/>
+        <SolidColorBrush x:Key="BrushOrangeHover" Color="#B55E10"/>
+        <SolidColorBrush x:Key="BrushBlueHover" Color="#083ECC"/>
+
+        <CornerRadius x:Key="CrBig">22</CornerRadius>
+        <CornerRadius x:Key="CrMid">16</CornerRadius>
+        <CornerRadius x:Key="CrPill">14</CornerRadius>
+
+        <!-- ====== Typography ====== -->
+        <Style x:Key="H1" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        </Style>
+
+        <Style x:Key="TableHeaderText" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="TableCellText" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- ====== Buttons ====== -->
+        <Style x:Key="PillButtonBase" TargetType="{x:Type Button}">
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border CornerRadius="{StaticResource CrPill}"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PillButtonRed" TargetType="{x:Type Button}" BasedOn="{StaticResource PillButtonBase}">
+            <Setter Property="Background" Value="{StaticResource BrushStopped}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BrushRedHover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PillButtonOrange" TargetType="{x:Type Button}" BasedOn="{StaticResource PillButtonBase}">
+            <Setter Property="Background" Value="{StaticResource BrushPaused}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BrushOrangeHover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PillButtonBlue" TargetType="{x:Type Button}" BasedOn="{StaticResource PillButtonBase}">
+            <Setter Property="Background" Value="{StaticResource BrushBlue}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BrushBlueHover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Small pills in table (status / next run / iterations) -->
+        <Style x:Key="PillLabel" TargetType="{x:Type Border}">
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="CornerRadius" Value="{StaticResource CrPill}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="22,0"/>
+        </Style>
+
+        <Style x:Key="PillLabelText" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Table row separators -->
+        <Style x:Key="RowSeparator" TargetType="{x:Type Border}">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="#4A4A4A"/>
+            <Setter Property="Opacity" Value="0.5"/>
+            <Setter Property="Margin" Value="0,0,0,0"/>
+        </Style>
+
+        <!-- Agent name link-like -->
+        <Style x:Key="AgentNameButton" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <ContentPresenter/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Info icon button -->
+        <Style x:Key="InfoIconButton" TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#000000"/>
+            <Setter Property="BorderThickness" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border CornerRadius="23"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <TextBlock Text="i"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       Foreground="#000000"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ====== Logs ====== -->
+        <Style x:Key="LogPanelBorder" TargetType="{x:Type Border}">
+            <Setter Property="CornerRadius" Value="{StaticResource CrMid}"/>
+            <Setter Property="Background" Value="#0A0A0A"/>
+            <Setter Property="Padding" Value="14"/>
+        </Style>
+
+        <Style x:Key="LogLineText" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#19B35A"/>
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+
+        
+        <!-- ====== Details page (AgentDetailsViewModel) ====== -->
+        <DataTemplate DataType="{x:Type vm:AgentDetailsViewModel}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- top -->
+                    <RowDefinition Height="*"/>     <!-- content -->
+                    <RowDefinition Height="Auto"/>  <!-- bottom buttons -->
+                </Grid.RowDefinitions>
+
+                <!-- Top -->
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="240"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                            Style="{StaticResource PillButtonBlue}"
+                            Content="Меню"
+                            Command="{Binding BackToMenuCommand}"/>
+
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Title}"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource TextPrimary}"/>
+
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding StatusText}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource TextPrimary}"/>
+                </Grid>
+
+                <!-- Content -->
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>  <!-- connections -->
+                        <RowDefinition Height="Auto"/>  <!-- metrics -->
+                        <RowDefinition Height="*"/>     <!-- logs -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Connections (DB/API) -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="240"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="220"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Подключение к:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="0" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding DbConnectionName}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
+                        </Border>
+                        <Border Grid.Row="0" Grid.Column="2" Height="38" CornerRadius="10" Background="{StaticResource BrushActive}" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding DbStatusText}" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Подключение к:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="2" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ApiBaseUrl}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
+                        </Border>
+                        <Border Grid.Row="2" Grid.Column="2"
+                                Height="38"
+                                CornerRadius="10"
+                                Background="{Binding ApiStatusBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ApiStatusText}"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- Metrics / fields -->
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="240"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="220"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="14"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="8"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="До следующего запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NextRunText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="График запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ScheduleText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Время последнего сбоя:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LastErrorText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+
+                        <!-- INN + запуск -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="ИНН для запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="6" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
+                            <TextBox Text="{Binding InnForRun, UpdateSourceTrigger=PropertyChanged}"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     VerticalContentAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Row="6" Grid.Column="2" Height="38" CornerRadius="10" Background="{StaticResource BrushActive}" VerticalAlignment="Center">
+                            <Button Content="Запустить"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="White"
+                                    FontWeight="SemiBold"
+                                    Command="{Binding RunByInnCommand}"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Последний message_id:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding LastMessageId}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="10" Grid.Column="0" Text="Функции агента:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding FunctionDescription}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Logs -->
+                    <Border Grid.Row="2"
+                            Style="{StaticResource LogPanelBorder}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Logs}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource LogLineText}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Text}" Value="{x:Null}">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+
+                <!-- Bottom buttons -->
+                <Grid Grid.Row="2" Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="0.2*"/>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="0.2*"/>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="0.2*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Style="{StaticResource PillButtonRed}" Height="56" FontSize="20" Content="Стоп" Command="{Binding StopCommand}"/>
+                    <Button Grid.Column="2" Style="{StaticResource PillButtonOrange}" Height="56" FontSize="20" Content="Пауза" Command="{Binding PauseCommand}"/>
+                    <Button Grid.Column="4" Style="{StaticResource PillButtonBlue}" Height="56" FontSize="20" Content="Запуск сейчас" Command="{Binding StartNowCommand}"/>
+                    <Button Grid.Column="6" Style="{StaticResource PillButtonBlue}" Height="56" FontSize="20" Content="Перезапуск" Command="{Binding RestartCommand}"/>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+
+        <!-- ====== Menu page (MainViewModel) ====== -->
+        <DataTemplate DataType="{x:Type vm:MainViewModel}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>      <!-- table -->
+                    <RowDefinition Height="18"/>     <!-- spacing -->
+                    <RowDefinition Height="Auto"/>   <!-- log panel -->
+                    <RowDefinition Height="20"/>     <!-- spacing -->
+                    <RowDefinition Height="Auto"/>   <!-- bottom buttons -->
+                </Grid.RowDefinitions>
+
+                <!-- ====== Agents table ====== -->
+                <Grid Grid.Row="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- header -->
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="*"/>    <!-- items -->
+                    </Grid.RowDefinitions>
+
+                    <!-- header row -->
+                    <Grid Grid.Row="0" Margin="4,0,4,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3.0*"/>
+                            <ColumnDefinition Width="2.0*"/>
+                            <ColumnDefinition Width="2.0*"/>
+                            <ColumnDefinition Width="2.0*"/>
+                            <ColumnDefinition Width="2.0*"/>
+                            <ColumnDefinition Width="1.0*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Агент" Style="{StaticResource TableHeaderText}"/>
+                        <TextBlock Grid.Column="1" Text="Статус" Style="{StaticResource TableHeaderText}"/>
+                        <TextBlock Grid.Column="2" Text="Следующий запуск" Style="{StaticResource TableHeaderText}"/>
+                        <TextBlock Grid.Column="3" Text="Итерации" Style="{StaticResource TableHeaderText}"/>
+                        <TextBlock Grid.Column="4" Text="Остановить" Style="{StaticResource TableHeaderText}"/>
+                        <TextBlock Grid.Column="5" Text="Инфо" Style="{StaticResource TableHeaderText}"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Style="{StaticResource RowSeparator}"/>
+
+                    <!-- table items -->
+                    <ItemsControl Grid.Row="2" ItemsSource="{Binding Agents}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="1"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Grid Grid.Row="0" Margin="4,10,4,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3.0*"/>
+                                            <ColumnDefinition Width="2.0*"/>
+                                            <ColumnDefinition Width="2.0*"/>
+                                            <ColumnDefinition Width="2.0*"/>
+                                            <ColumnDefinition Width="2.0*"/>
+                                            <ColumnDefinition Width="1.0*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Agent name (click -> details) -->
+                                        <Button Grid.Column="0"
+                                                Style="{StaticResource AgentNameButton}"
+                                                Command="{Binding OpenDetailsCommand}">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       Style="{StaticResource TableCellText}"
+                                                       HorizontalAlignment="Center"/>
+                                        </Button>
+
+                                        <!-- Status pill -->
+                                        <Border Grid.Column="1">
+                                            <Border.Style>
+                                                <Style TargetType="Border" BasedOn="{StaticResource PillLabel}">
+                                                    <Setter Property="Background" Value="{StaticResource BrushStopped}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="active">
+                                                            <Setter Property="Background" Value="{StaticResource BrushActive}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="paused">
+                                                            <Setter Property="Background" Value="{StaticResource BrushPaused}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="stopped">
+                                                            <Setter Property="Background" Value="{StaticResource BrushStopped}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+
+                                            <TextBlock Text="{Binding StatusText}" Style="{StaticResource PillLabelText}"/>
+                                        </Border>
+
+                                        <!-- Next run pill -->
+                                        <Border Grid.Column="2" Style="{StaticResource PillLabel}" Background="{StaticResource BrushPaused}">
+                                            <TextBlock Text="{Binding NextRunText}" Style="{StaticResource PillLabelText}"/>
+                                        </Border>
+
+                                        <!-- Iterations pill -->
+                                        <Border Grid.Column="3" Style="{StaticResource PillLabel}" Background="{StaticResource BrushPaused}">
+                                            <TextBlock Text="{Binding IterationsText}" Style="{StaticResource PillLabelText}"/>
+                                        </Border>
+
+                                        <!-- Stop button per agent -->
+                                        <Button Grid.Column="4"
+                                                Style="{StaticResource PillButtonRed}"
+                                                Content="Остановка"
+                                                Command="{Binding StopCommand}"/>
+
+                                        <!-- Info icon -->
+                                        <Button Grid.Column="5"
+                                                Style="{StaticResource InfoIconButton}"
+                                                Command="{Binding OpenDetailsCommand}"/>
+                                    </Grid>
+
+                                    <Border Grid.Row="1" Style="{StaticResource RowSeparator}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <!-- ====== Global logs ====== -->
+                <Border Grid.Row="2"
+                        MinHeight="220"
+                        MaxHeight="320"
+                        Style="{StaticResource LogPanelBorder}"
+                        Margin="36,0,36,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding GlobalLogs}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Style="{StaticResource LogLineText}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- ====== Bottom global buttons ====== -->
+                <Grid Grid.Row="4" Margin="36,0,36,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2.2*"/>
+                        <ColumnDefinition Width="0.2*"/>
+                        <ColumnDefinition Width="2.2*"/>
+                        <ColumnDefinition Width="0.2*"/>
+                        <ColumnDefinition Width="2.2*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                            Style="{StaticResource PillButtonRed}"
+                            Height="64"
+                            FontSize="22"
+                            Content="Стоп"
+                            Command="{Binding StopAllCommand}"/>
+
+                    <Button Grid.Column="2"
+                            Style="{StaticResource PillButtonOrange}"
+                            Height="64"
+                            FontSize="22"
+                            Content="Пауза"
+                            Command="{Binding PauseAllCommand}"/>
+
+                    <Button Grid.Column="4"
+                            Style="{StaticResource PillButtonBlue}"
+                            Height="64"
+                            FontSize="22"
+                            Content="Перезапуск"
+                            Command="{Binding RestartAllCommand}"/>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="4,4,4,12">
+            <TextBlock Text="Integration Control Panel" Style="{StaticResource H1}"/>
+        </DockPanel>
+
+        <!-- Main card -->
+        <Border Grid.Row="1"
+                Background="{StaticResource CardBg}"
+                CornerRadius="{StaticResource CrBig}"
+                Padding="28"
+                BorderBrush="{StaticResource CardStroke}"
+                BorderThickness="1">
+
+            <ContentControl Content="{Binding CurrentView}"/>
+        </Border>
+    </Grid>
+</Window>

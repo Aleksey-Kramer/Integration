@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "updated_at_utc": "2026-01-14T10:00:00Z",
+  "agents": {
+    "uzstandart": {
+      "display_name": "TIMV UzStandart",
+
+      "api": {
+        "base_url": "http://10.190.7.22:55550",
+        "state": "unknown",
+        "text": "Состояние: неизвестно",
+        "last_success_at_utc": null,
+        "last_error_at_utc": null,
+        "last_error": {
+          "code": null,
+          "kind": null,
+          "message": null
+        }
+      },
+
+      "db": {
+        "connection_name": null,
+        "state": "unknown",
+        "text": "Состояние: неизвестно",
+        "last_success_at_utc": null,
+        "last_error_at_utc": null,
+        "last_error": {
+          "code": null,
+          "kind": null,
+          "message": null
+        }
+      },
+
+      "tick": {
+        "last_started_at_utc": null,
+        "last_finished_at_utc": null,
+        "last_duration_ms": null,
+        "last_result": "none"
+      },
+
+      "progress": {
+        "iterations_total": 0,
+        "last_page": null,
+        "page_total": null,
+        "items_last_tick": null
+      }
+    }
+  }
+}
