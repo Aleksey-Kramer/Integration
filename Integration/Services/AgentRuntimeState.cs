@@ -13,4 +13,6 @@ public sealed class AgentRuntimeState
 
     // будущее
     public string? LastMessageId { get; set; }
+    // summary: Runtime-состояние одного агента, живущее между рестартами приложения.
+    //          Содержит состояние API-подключения и последнюю ошибку/сообщение для отображения в UI.
 }

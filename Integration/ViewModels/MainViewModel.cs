@@ -124,6 +124,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             () => _ui(() => CurrentView = this)
         );
     }
+    // summary: Главная VM приложения. Показывает список агентов и глобальные логи,
+    //          подписывается на события EventBus, открывает экран деталей агента через CurrentView.
 }
 
 public sealed class RelayCommand<T> : ICommand
@@ -148,4 +150,6 @@ public sealed class RelayCommand<T> : ICommand
         add => CommandManager.RequerySuggested += value;
         remove => CommandManager.RequerySuggested -= value;
     }
+    // summary: Универсальная реализация ICommand для MVVM (WPF).
+    //          Оборачивает canExecute/execute и подхватывает RequerySuggested для обновления доступности команд.
 }

@@ -171,20 +171,20 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
 
     private void ApplyApiIndicatorFromRuntime()
     {
-        var st = _runtimeState.GetOrCreate(_agentId);
+        var st = _runtimeState.GetAgent(_agentId);
 
-        switch (st.ApiState)
+        switch (st.Api.Status)
         {
-            case AgentApiState.Connected:
+            case ApiConnectionStatus.ok:
                 ApiStatusBrush = Brushes.Green;
                 ApiStatusText = "Состояние: подключен";
                 break;
 
-            case AgentApiState.Error:
+            case ApiConnectionStatus.error:
                 ApiStatusBrush = Brushes.Red;
-                ApiStatusText = string.IsNullOrWhiteSpace(st.ApiError)
+                ApiStatusText = string.IsNullOrWhiteSpace(st.Api.ErrorCode)
                     ? "Ошибка"
-                    : $"Ошибка: {st.ApiError}";
+                    : $"Ошибка: {st.Api.ErrorCode}";
                 break;
 
             default:
@@ -193,10 +193,10 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
                 break;
         }
 
-        // время последнего сбоя (из runtime, чтобы не затиралось при выходе/входе в детали)
-        if (st.LastApiErrorAtUtc is not null)
-            LastErrorText = st.LastApiErrorAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");
+        if (st.LastErrorAt is not null)
+            LastErrorText = st.LastErrorAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss");
     }
+
 
     private void OnAgentLogAdded(AgentLogEntry entry)
     {
@@ -212,13 +212,17 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
                 Logs.RemoveAt(0);
 
             // --- MVP-логика обновления API индикатора по факту лога ---
-            // 1) любой error => считаем, что это ошибка API (позже заменим на точный тип ошибки/код)
             if (entry.Level == LogLevel.error)
             {
-                var st = _runtimeState.GetOrCreate(_agentId);
-                st.ApiState = AgentApiState.Error;
-                st.ApiError = entry.Message; // позже сделаем нормальный код/тип
-                st.LastApiErrorAtUtc = entry.At.UtcDateTime;
+                _runtimeState.UpdateAgent(_agentId, st =>
+                {
+                    st.Api.Status = ApiConnectionStatus.error;
+                    st.Api.ErrorCode = entry.Message;      // позже можно заменить на нормализованный код
+                    st.Api.LastCheckedAt = entry.At;       // если тип другой — поправим по ApiConnectionState.cs
+
+                    st.LastErrorAt = entry.At;
+                    st.LastErrorMessage = entry.Message;
+                });
 
                 ApiStatusBrush = Brushes.Red;
                 ApiStatusText = $"Ошибка: {entry.Message}";
@@ -226,15 +230,17 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
             }
             else
             {
-                // 2) если пришло что-то "успешное" по тику — считаем API подключенным
-                // (да, это эвристика; потом заменим на явное событие AgentApiHealthChanged)
+                // если пришло что-то "успешное" по тику — считаем API подключенным (эвристика)
                 if (entry.Message.Contains("page", StringComparison.OrdinalIgnoreCase) ||
                     entry.Message.Contains("items", StringComparison.OrdinalIgnoreCase) ||
                     entry.Message.Contains("tick finished", StringComparison.OrdinalIgnoreCase))
                 {
-                    var st = _runtimeState.GetOrCreate(_agentId);
-                    st.ApiState = AgentApiState.Connected;
-                    st.ApiError = null;
+                    _runtimeState.UpdateAgent(_agentId, st =>
+                    {
+                        st.Api.Status = ApiConnectionStatus.ok;
+                        st.Api.ErrorCode = null;
+                        st.Api.LastCheckedAt = entry.At;
+                    });
 
                     ApiStatusBrush = Brushes.Green;
                     ApiStatusText = "Состояние: подключен";
@@ -242,6 +248,7 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
             }
         });
     }
+
 
     private void OnAgentStatusChanged(string agentId, AgentStatus status)
     {

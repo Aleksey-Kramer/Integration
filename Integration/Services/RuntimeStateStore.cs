@@ -82,4 +82,6 @@ public sealed class RuntimeStateStore
             mutate(state);
         }
     }
+    // summary: In-memory хранилище runtime-состояния агентов с загрузкой/сохранением JSON-файла.
+    //          Даёт GetAgent (get-or-create) и UpdateAgent (атомарная мутация под lock).
 }
