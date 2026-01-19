@@ -8,7 +8,4 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
     }
-
-    // summary: WPF-окно-хост. Инициализирует XAML и НЕ создаёт ViewModel.
-    //          DataContext задаётся в точке композиции (App.OnStartup), чтобы не ломать DI.
 }

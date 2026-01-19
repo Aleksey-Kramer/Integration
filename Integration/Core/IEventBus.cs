@@ -1,8 +1,7 @@
 using System;
+using Integration.Services;
 
 namespace Integration.Core;
-
-
 
 public interface IEventBus
 {
@@ -14,6 +13,13 @@ public interface IEventBus
 
     void PublishAgentStatus(string agentId, AgentStatus status);
 
+    // NEW: явное изменение состояния коннекта к API агента
+    void PublishAgentApiStateChanged(
+        string agentId,
+        ApiConnectionStatus status,
+        string? errorCode = null,
+        string? errorMessage = null);
+
     // --- Subscribe API (используют VM / UI) ---
 
     event Action<LogEntry>? GlobalLogAdded;
@@ -21,6 +27,9 @@ public interface IEventBus
     event Action<AgentLogEntry>? AgentLogAdded;
 
     event Action<string, AgentStatus>? AgentStatusChanged;
+
+    // NEW
+    event Action<string, ApiConnectionStatus, string?, string?>? AgentApiStateChanged;
 }
 
 public enum LogLevel
@@ -40,3 +49,8 @@ public sealed record AgentLogEntry(
     DateTimeOffset At,
     LogLevel Level,
     string Message);
+
+// summary:
+// IEventBus — центральная шина событий между агентами/оркестратором и UI.
+// Теперь умеет передавать явный статус коннекта к API (AgentApiStateChanged),
+// чтобы UI не строил эвристику по текстам логов.

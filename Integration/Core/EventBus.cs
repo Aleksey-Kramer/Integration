@@ -1,4 +1,5 @@
 using System;
+using Integration.Services;
 
 namespace Integration.Core;
 
@@ -7,6 +8,9 @@ public sealed class EventBus : IEventBus
     public event Action<LogEntry>? GlobalLogAdded;
     public event Action<AgentLogEntry>? AgentLogAdded;
     public event Action<string, AgentStatus>? AgentStatusChanged;
+
+    // NEW
+    public event Action<string, ApiConnectionStatus, string?, string?>? AgentApiStateChanged;
 
     public void PublishGlobal(LogEntry entry)
     {
@@ -32,21 +36,27 @@ public sealed class EventBus : IEventBus
         SafeInvoke(AgentStatusChanged, agentId, status);
     }
 
+    // NEW
+    public void PublishAgentApiStateChanged(
+        string agentId,
+        ApiConnectionStatus status,
+        string? errorCode = null,
+        string? errorMessage = null)
+    {
+        if (string.IsNullOrWhiteSpace(agentId))
+            throw new ArgumentException("agentId is required.", nameof(agentId));
+
+        SafeInvoke(AgentApiStateChanged, agentId, status, errorCode, errorMessage);
+    }
+
     private static void SafeInvoke<T>(Action<T>? evt, T arg)
     {
         if (evt is null) return;
 
         foreach (var d in evt.GetInvocationList())
         {
-            try
-            {
-                ((Action<T>)d).Invoke(arg);
-            }
-            catch
-            {
-                // MVP: глушим, чтобы один сломанный подписчик не ломал всю шину.
-                // Позже можно прокидывать это в GlobalLogAdded или отдельный internal log.
-            }
+            try { ((Action<T>)d).Invoke(arg); }
+            catch { /* см. комментарии ниже */ }
         }
     }
 
@@ -56,14 +66,27 @@ public sealed class EventBus : IEventBus
 
         foreach (var d in evt.GetInvocationList())
         {
-            try
-            {
-                ((Action<T1, T2>)d).Invoke(arg1, arg2);
-            }
+            try { ((Action<T1, T2>)d).Invoke(arg1, arg2); }
+            catch { /* см. комментарии ниже */ }
+        }
+    }
+
+    // NEW
+    private static void SafeInvoke<T1, T2, T3, T4>(Action<T1, T2, T3, T4>? evt, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+    {
+        if (evt is null) return;
+
+        foreach (var d in evt.GetInvocationList())
+        {
+            try { ((Action<T1, T2, T3, T4>)d).Invoke(arg1, arg2, arg3, arg4); }
             catch
             {
-                // см. комментарий выше
+                // MVP: глушим, чтобы один сломанный подписчик не ломал всю шину.
+                // Позже можно логировать в GlobalLogAdded или отдельный internal log.
             }
         }
     }
+
+    // summary: Реализация IEventBus — централизованной шины событий между агентами/оркестратором и UI.
+    //          Публикует логи, статусы агентов и теперь явное состояние коннекта к API (AgentApiStateChanged).
 }

@@ -16,14 +16,14 @@
     "uzstandart": {
       "base_url": "http://10.190.7.22:55550",
       "endpoint": "/api/default/certificate",
-      "auth_bearer": "0636cc6fc3e77d**********7f0bd85",
+      "auth_bearer": "0636cc6fc3e77d2d2240afa6b7f0bd85",
       "http_timeout_seconds": 30
     },
 
     "timv": {
       "base_url": "https://operator.timv.uz/api/v1",
-      "uuid": "9326ab16-89f3-11ef-ad94-**********",
-      "key": "$2y$13$7To1eSkxu4gzM7**********.3x1kkJXjtGYjudKL9HRe3j1FK",
+      "uuid": "9326ab16-89f3-11ef-ad94-000c29c5dc55",
+      "key": "$2y$13$7To1eSkxu4gzM7NPzwR0iOfbOib.3x1kkJXjtGYjudKL9HRe3j1FK",
       "default_method": "EXCHANGE_ORG_DEBTOR",
       "default_table": "org_debtor",
       "poll_minutes": 30,
@@ -35,7 +35,7 @@
       "base_url": "https://api.pharmagency.uz",
       "gxp_base_url": "https://api.gxp.pharmagency.uz",
       "login": "xarid_pharma_uz",
-      "password": "1K3!**********2"
+      "password": "1K3!oHl9#J0#Ec@I2"
     }
   },
 
