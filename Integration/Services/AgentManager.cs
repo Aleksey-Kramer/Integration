@@ -117,6 +117,7 @@ public sealed class AgentManager
             try
             {
                 agent.Stop();
+                _bus.PublishAgentApiStateChanged(agent.Id, ApiConnectionStatus.unknown, errorCode: null, errorMessage: null);
                 _bus.PublishAgentStatus(agent.Id, agent.Status);
             }
             catch
@@ -160,6 +161,7 @@ public sealed class AgentManager
         }
 
         agent.Stop();
+        _bus.PublishAgentApiStateChanged(agent.Id, ApiConnectionStatus.unknown, errorCode: null, errorMessage: null);
         _bus.PublishAgentStatus(agent.Id, agent.Status);
         _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Stopped: {agent.DisplayName}"));
     }
@@ -199,13 +201,19 @@ public sealed class AgentManager
         }
 
         foreach (var agent in _agents.Values)
+        {
             agent.Stop();
+            _bus.PublishAgentApiStateChanged(agent.Id, ApiConnectionStatus.unknown, errorCode: null, errorMessage: null);
+        }
 
         foreach (var agent in _agents.Values)
             _bus.PublishAgentStatus(agent.Id, agent.Status);
 
         _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, "Stopped all agents."));
     }
+    
+    // summary: Оркестратор агентов. Регистрирует агентов, управляет их жизненным циклом,
+    //          предотвращает параллельные тики, умеет cancel текущего тика и публикует логи/статусы через EventBus.
 
     // -------------------------
     // Internal runtime helper
@@ -247,4 +255,5 @@ public sealed class AgentManager
             }
         }
     }
+
 }

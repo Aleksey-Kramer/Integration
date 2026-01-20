@@ -1,4 +1,5 @@
 using System;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Integration.Core;
@@ -10,7 +11,8 @@ public sealed class UzStandartAgent : IAgent
 {
     private static readonly JsonSerializerOptions PrettyJson = new()
     {
-        WriteIndented = true
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     private readonly ParametersStore _parameters;
