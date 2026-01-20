@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using Integration.Core;
+using Integration.Models;
 using Integration.Services;
 
 namespace Integration.ViewModels;
@@ -127,6 +128,7 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
         // подписки
         _bus.AgentLogAdded += OnAgentLogAdded;
         _bus.AgentStatusChanged += OnAgentStatusChanged;
+        _bus.AgentApiStateChanged += OnAgentApiStateChanged;
     }
 
     private void RefreshFromAgent()
@@ -182,9 +184,11 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
 
             case ApiConnectionStatus.error:
                 ApiStatusBrush = Brushes.Red;
-                ApiStatusText = string.IsNullOrWhiteSpace(st.Api.ErrorCode)
+
+                ApiStatusText = st.Api.ErrorCode == AgentStatusErrors.none
                     ? "Ошибка"
                     : $"Ошибка: {st.Api.ErrorCode}";
+
                 break;
 
             default:
@@ -211,43 +215,19 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
             if (Logs.Count > 2000)
                 Logs.RemoveAt(0);
 
-            // --- MVP-логика обновления API индикатора по факту лога ---
             if (entry.Level == LogLevel.error)
             {
                 _runtimeState.UpdateAgent(_agentId, st =>
                 {
-                    st.Api.Status = ApiConnectionStatus.error;
-                    st.Api.ErrorCode = entry.Message;      // позже можно заменить на нормализованный код
-                    st.Api.LastCheckedAt = entry.At;       // если тип другой — поправим по ApiConnectionState.cs
-
                     st.LastErrorAt = entry.At;
                     st.LastErrorMessage = entry.Message;
                 });
 
-                ApiStatusBrush = Brushes.Red;
-                ApiStatusText = $"Ошибка: {entry.Message}";
                 LastErrorText = $"{entry.At:dd.MM.yyyy HH:mm:ss}";
-            }
-            else
-            {
-                // если пришло что-то "успешное" по тику — считаем API подключенным (эвристика)
-                if (entry.Message.Contains("page", StringComparison.OrdinalIgnoreCase) ||
-                    entry.Message.Contains("items", StringComparison.OrdinalIgnoreCase) ||
-                    entry.Message.Contains("tick finished", StringComparison.OrdinalIgnoreCase))
-                {
-                    _runtimeState.UpdateAgent(_agentId, st =>
-                    {
-                        st.Api.Status = ApiConnectionStatus.ok;
-                        st.Api.ErrorCode = null;
-                        st.Api.LastCheckedAt = entry.At;
-                    });
-
-                    ApiStatusBrush = Brushes.Green;
-                    ApiStatusText = "Состояние: подключен";
-                }
             }
         });
     }
+
 
 
     private void OnAgentStatusChanged(string agentId, AgentStatus status)
@@ -270,6 +250,48 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
 
     private void OnPropertyChanged([CallerMemberName] string? propName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+    
+    // NEW: явное обновление статуса API (без эвристик по логам)
+    private void OnAgentApiStateChanged(string agentId, ApiConnectionStatus status, string? errorCode, string? errorMessage)
+    {
+        if (!agentId.Equals(_agentId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _ui(() =>
+        {
+            _runtimeState.UpdateAgent(_agentId, st =>
+            {
+                st.Api.Status = status;
+                st.Api.LastCheckedAt = DateTimeOffset.Now;
+
+                if (status == ApiConnectionStatus.ok)
+                {
+                    st.Api.ErrorCode = AgentStatusErrors.none;
+                    st.Api.ErrorMessage = null;
+                }
+                else if (status == ApiConnectionStatus.error)
+                {
+                    // Пытаемся распарсить строковый код в enum, иначе unknown
+                    st.Api.ErrorCode = Enum.TryParse<AgentStatusErrors>(errorCode, ignoreCase: true, out var parsed)
+                        ? parsed
+                        : AgentStatusErrors.unknown;
+
+                    st.Api.ErrorMessage = errorMessage;
+
+                    st.LastErrorAt = DateTimeOffset.Now;
+                    st.LastErrorMessage = errorMessage ?? errorCode;
+                }
+                else
+                {
+                    st.Api.ErrorCode = AgentStatusErrors.none;
+                    st.Api.ErrorMessage = null;
+                }
+            });
+
+            ApplyApiIndicatorFromRuntime();
+        });
+    }
+
 
     // summary: ViewModel экрана деталей агента. Отвечает за отображение статуса агента, логов,
     //          и индикаторов (API/DB), подписывается на события EventBus и читает/обновляет RuntimeStateStore

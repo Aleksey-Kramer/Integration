@@ -10,7 +10,6 @@
 
     <ItemGroup>
       <Folder Include="Agents\UzExpertise\" />
-      <Folder Include="Models\" />
     </ItemGroup>
 
     <ItemGroup>

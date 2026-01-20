@@ -14,6 +14,7 @@
 
   "services": {
     "uzstandart": {
+      //"base_url": "http://10.111.7.22:55550",
       "base_url": "http://10.190.7.22:55550",
       "endpoint": "/api/default/certificate",
       "auth_bearer": "0636cc6fc3e77d2d2240afa6b7f0bd85",

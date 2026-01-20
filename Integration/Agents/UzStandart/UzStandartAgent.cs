@@ -1,8 +1,11 @@
 using System;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Integration.Core;
+using Integration.Models;
 using Integration.Services;
 
 namespace Integration.Agents.UzStandart;
@@ -92,7 +95,7 @@ public sealed class UzStandartAgent : IAgent
 
         context.EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info,
             $"{DisplayName}: tick start (page={page}, per_page={perPage})."));
-        
+
         context.EventBus.PublishAgent(new AgentLogEntry(Id, DateTimeOffset.Now, LogLevel.info,
             $"tick start (page={page}, per_page={perPage})."));
 
@@ -105,8 +108,6 @@ public sealed class UzStandartAgent : IAgent
 
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            
-            //начало изменений
             // Базовая проверка логики API
             if (!resp.Success)
             {
@@ -117,16 +118,14 @@ public sealed class UzStandartAgent : IAgent
                 context.EventBus.PublishAgentApiStateChanged(
                     Id,
                     ApiConnectionStatus.error,
-                    errorCode: $"api_success_false_{resp.Status}",
+                    errorCode: AgentStatusErrors.api_success_false.ToString(),
                     errorMessage: resp.Msg ?? msg);
 
                 context.EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.error, msg));
                 context.EventBus.PublishAgent(new AgentLogEntry(Id, DateTimeOffset.Now, LogLevel.error, raw));
                 return;
             }
-            //конец изменений
 
-            //начало изменений
             _state.UpdatePageTotal(resp.PageTotal);
 
             var itemsCount = resp.Data?.Count ?? 0;
@@ -141,7 +140,6 @@ public sealed class UzStandartAgent : IAgent
             // Global log — коротко
             context.EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info,
                 $"{DisplayName}: page {page} received, items {itemsCount}."));
-            //конец изменений
 
             // Agent details log — строка + полный JSON (pretty)
             context.EventBus.PublishAgent(new AgentLogEntry(Id, DateTimeOffset.Now, LogLevel.info,
@@ -154,7 +152,6 @@ public sealed class UzStandartAgent : IAgent
             // commit: страница обработана → двигаемся дальше
             _state.MarkPageProcessed(page);
         }
-        //начало изменений
         catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
         {
             // Отмена тика (Stop/Cancel) — это не ошибка API, статус не трогаем.
@@ -167,19 +164,73 @@ public sealed class UzStandartAgent : IAgent
             var msg = $"{DisplayName}: tick error. {ex.GetType().Name}: {ex.Message}";
             _state.MarkError(msg);
 
-            // Явно фиксируем ошибку API (или инфраструктуры)
+            var code = MapErrorCode(ex);
+
+            // Явно фиксируем ошибку API/инфраструктуры понятным кодом
             context.EventBus.PublishAgentApiStateChanged(
                 Id,
                 ApiConnectionStatus.error,
-                errorCode: ex.GetType().Name,
+                errorCode: code.ToString(),
                 errorMessage: ex.Message);
 
             context.EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.error, msg));
             context.EventBus.PublishAgent(new AgentLogEntry(Id, DateTimeOffset.Now, LogLevel.error, msg));
         }
-        //конец изменений
-
     }
+
+    private static AgentStatusErrors MapErrorCode(Exception ex)
+    {
+        // нормализуем по "корню"
+        var e = ex;
+        while (e.InnerException is not null)
+            e = e.InnerException;
+
+        // --- сеть / API ---
+        if (e is SocketException se)
+        {
+            return se.SocketErrorCode switch
+            {
+                SocketError.TimedOut =>
+                    AgentStatusErrors.api_timeout,
+
+                SocketError.ConnectionRefused =>
+                    AgentStatusErrors.api_connection_failed,
+
+                SocketError.HostNotFound =>
+                    AgentStatusErrors.api_connection_failed,
+
+                SocketError.NetworkUnreachable =>
+                    AgentStatusErrors.api_connection_failed,
+
+                SocketError.HostUnreachable =>
+                    AgentStatusErrors.api_connection_failed,
+
+                _ =>
+                    AgentStatusErrors.api_connection_failed
+            };
+        }
+
+        return e switch
+        {
+            // HttpClient оборачивает сетевые ошибки
+            HttpRequestException =>
+                AgentStatusErrors.api_http_error,
+
+            // часто означает таймаут HttpClient (если не дошло до SocketException)
+            TaskCanceledException =>
+                AgentStatusErrors.api_timeout,
+
+            JsonException =>
+                AgentStatusErrors.data_parse_error,
+
+            OperationCanceledException =>
+                AgentStatusErrors.agent_canceled,
+
+            _ =>
+                AgentStatusErrors.unknown
+        };
+    }
+
 
     private static string TryPrettifyJson(string raw)
     {
@@ -205,8 +256,7 @@ public sealed class UzStandartAgent : IAgent
         if (Status == AgentStatus.stopped)
             Status = AgentStatus.active;
     }
-    
-    // summary: Агент интеграции UzStandart. Выполняет запросы к API с пагинацией, логирует результаты
-    //          и теперь публикует явное состояние коннекта к API через EventBus (ok/error) без эвристик по логам.
 
+    // summary: Агент интеграции UzStandart. Выполняет запросы к API с пагинацией, логирует результаты
+    //          и публикует явное состояние коннекта к API через EventBus (ok/error) с нормализованными кодами.
 }
