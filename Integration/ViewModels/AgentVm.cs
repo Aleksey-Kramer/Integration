@@ -5,12 +5,16 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Integration.Core;
 using Integration.Services;
+using Integration.Scheduling;
 
 namespace Integration.ViewModels;
 
 public sealed class AgentVm : INotifyPropertyChanged
 {
+    //Начало изменений
     private readonly AgentManager _manager;
+    private readonly QuartzSchedulerService _scheduler;
+    //Конец изменений
 
     public string Id { get; }
     public string DisplayName { get; }
@@ -19,13 +23,18 @@ public sealed class AgentVm : INotifyPropertyChanged
     public AgentStatus Status
     {
         get => _status;
+        //Начало изменений
         private set
         {
             if (_status == value) return;
             _status = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(StatusText));
+
+            if (PauseResumeCommand is RelayCommand pr) pr.RaiseCanExecuteChanged();
+            if (StopCommand is RelayCommand st) st.RaiseCanExecuteChanged();
         }
+        //Конец изменений
     }
 
     // Текст под статусом (Paused by user / Stopped manually / Stopped due to error)
@@ -52,9 +61,11 @@ public sealed class AgentVm : INotifyPropertyChanged
     public ICommand StopCommand { get; }
     public ICommand OpenDetailsCommand { get; }
 
-    public AgentVm(IAgent agent, AgentManager manager, Action<string>? openDetails)
+    //Начало изменений
+    public AgentVm(IAgent agent, AgentManager manager, QuartzSchedulerService scheduler, Action<string>? openDetails)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
 
         Id = agent?.Id ?? throw new ArgumentNullException(nameof(agent));
         DisplayName = agent.DisplayName;
@@ -74,6 +85,7 @@ public sealed class AgentVm : INotifyPropertyChanged
 
         OpenDetailsCommand = new RelayCommand(() => openDetails?.Invoke(Id));
     }
+    //Конец изменений
 
     public string StatusText => Status switch
     {
@@ -99,10 +111,27 @@ public sealed class AgentVm : INotifyPropertyChanged
         OnPropertyChanged(nameof(IterationsText));
     }
 
+    //Начало изменений
+    public async Task RefreshScheduleAsync()
+    {
+        var next = await _scheduler.GetNextRunAsync(Id).ConfigureAwait(false);
+        var desc = await _scheduler.GetScheduleDescriptionAsync(Id).ConfigureAwait(false);
+
+        var nextText = next.HasValue
+            ? next.Value.ToString("dd.MM.yyyy HH:mm:ss")
+            : "—";
+
+        UpdateScheduleInfo(nextText, string.IsNullOrWhiteSpace(desc) ? "—" : desc);
+    }
+    //Конец изменений
+    
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    
+    // summary: AgentVm — VM строки агента в списке. Держит статус и команды управления,
+    //          а также отображаемые данные расписания (NextRun/Iterations), получаемые через QuartzSchedulerService.
 }
 
 /// <summary>

@@ -50,6 +50,12 @@
       "frameworks": {
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows",
+          "dependencies": {
+            "Quartz": {
+              "target": "Package",
+              "version": "[3.15.1, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

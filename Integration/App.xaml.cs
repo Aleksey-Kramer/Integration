@@ -3,6 +3,7 @@ using System.Windows;
 using Integration.Agents.UzStandart;
 using Integration.Core;
 using Integration.Services;
+using Integration.Scheduling;
 using Integration.ViewModels;
 
 namespace Integration;
@@ -13,6 +14,10 @@ public partial class App : Application
     public static AgentManager AgentManager { get; private set; } = null!;
     public static ParametersStore Parameters { get; private set; } = null!;
     public static RuntimeStateStore RuntimeState { get; private set; } = null!;
+
+    // Quartz scheduler (in-memory)
+    public static QuartzSchedulerService Scheduler { get; private set; } = null!;
+
     public static HttpClientProvider Http { get; private set; } = null!;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -23,32 +28,46 @@ public partial class App : Application
             EventBus = new EventBus();
             Parameters = new ParametersStore("parameters.json");
             RuntimeState = new RuntimeStateStore("runtime_state.json");
-            RuntimeState.Reload(); // читаем файл -> в память
+            RuntimeState.Reload();
 
             Http = new HttpClientProvider(Parameters);
             AgentManager = new AgentManager(EventBus);
 
-            // 2) agents (register only, do not start)
+            // 2) agents (register first)
             var uzClient = new UzStandartClient(Http);
             var uzAgent = new UzStandartAgent(Parameters, uzClient);
 
-            // Если у агента по умолчанию Stopped — оставляем Activate().
+            // если агент по умолчанию stopped — активируем
             uzAgent.Activate();
-
             AgentManager.Register(uzAgent);
+
+            // 3) Quartz: создаём сервис, регистрируем job'ы и стартуем scheduler
+            // ВАЖНО: QuartzAgentJob читает AgentManager и EventBus из SchedulerContext
+            Scheduler = new QuartzSchedulerService(Parameters, AgentManager, EventBus);
+            Scheduler.RegisterAgentsAsync().GetAwaiter().GetResult();
+            Scheduler.StartAsync().GetAwaiter().GetResult();
+
+            // первичное уведомление UI о расписании
+            foreach (var a in AgentManager.GetAgents())
+                EventBus.PublishAgentScheduleChanged(a.Id);
 
             base.OnStartup(e);
 
-            // 3) UI
+            // 4) UI
             var window = new MainWindow
             {
-                DataContext = new MainViewModel(EventBus, AgentManager, Parameters, RuntimeState)
+                DataContext = new MainViewModel(
+                    EventBus,
+                    AgentManager,
+                    Parameters,
+                    RuntimeState,
+                    Scheduler)
             };
 
             MainWindow = window;
             window.Show();
 
-            // 4) logs
+            // 5) logs
             EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, "App started."));
             EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Parameters loaded: {Parameters.FilePath}"));
             EventBus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Runtime state loaded: {RuntimeState.FilePath}"));
@@ -63,5 +82,20 @@ public partial class App : Application
 
             Shutdown(-1);
         }
+    }
+
+    // graceful Quartz shutdown
+    protected override void OnExit(ExitEventArgs e)
+    {
+        try
+        {
+            Scheduler?.ShutdownAsync().GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // ignore shutdown errors
+        }
+
+        base.OnExit(e);
     }
 }

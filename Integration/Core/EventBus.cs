@@ -7,10 +7,13 @@ public sealed class EventBus : IEventBus
 {
     public event Action<LogEntry>? GlobalLogAdded;
     public event Action<AgentLogEntry>? AgentLogAdded;
+    //Начало изменений
     public event Action<string, AgentStatus>? AgentStatusChanged;
+    public event Action<string>? AgentScheduleChanged;
 
     // NEW
     public event Action<string, ApiConnectionStatus, string?, string?>? AgentApiStateChanged;
+    //Конец изменений
 
     public void PublishGlobal(LogEntry entry)
     {
@@ -28,6 +31,7 @@ public sealed class EventBus : IEventBus
         SafeInvoke(AgentLogAdded, entry);
     }
 
+    //Начало изменений
     public void PublishAgentStatus(string agentId, AgentStatus status)
     {
         if (string.IsNullOrWhiteSpace(agentId))
@@ -35,6 +39,15 @@ public sealed class EventBus : IEventBus
 
         SafeInvoke(AgentStatusChanged, agentId, status);
     }
+
+    public void PublishAgentScheduleChanged(string agentId)
+    {
+        if (string.IsNullOrWhiteSpace(agentId))
+            throw new ArgumentException("agentId is required.", nameof(agentId));
+
+        SafeInvoke(AgentScheduleChanged, agentId);
+    }
+    //Конец изменений
 
     // NEW
     public void PublishAgentApiStateChanged(
@@ -87,6 +100,10 @@ public sealed class EventBus : IEventBus
         }
     }
 
+    //Начало изменений
     // summary: Реализация IEventBus — централизованной шины событий между агентами/оркестратором и UI.
-    //          Публикует логи, статусы агентов и теперь явное состояние коннекта к API (AgentApiStateChanged).
+    //          Публикует логи, статусы агентов, сигнал обновления расписания (AgentScheduleChanged)
+    //          и явное состояние коннекта к API (AgentApiStateChanged).
+    //Конец изменений
+
 }

@@ -125,10 +125,26 @@ public sealed class AgentBlock
     public PagingBlock? Paging { get; init; }
 }
 
+//Начало изменений
 public sealed class ScheduleBlock
 {
-    public int Every_Seconds { get; init; } = 600;
+    // Один из вариантов (приоритет будет обрабатываться в Scheduling-слое):
+    // - every_seconds
+    // - every_minutes
+    // - every_hours
+    // - daily_at (HH:mm)
+
+    public int? Every_Seconds { get; init; } = null;
+    public int? Every_Minutes { get; init; } = null;
+    public int? Every_Hours { get; init; } = null;
+
+    /// <summary>
+    /// Ежедневный запуск в локальном времени (формат "HH:mm", например "22:00")
+    /// </summary>
+    public string? Daily_At { get; init; } = null;
 }
+//Конец изменений
+
 
 public sealed class PagingBlock
 {

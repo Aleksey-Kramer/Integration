@@ -45,7 +45,7 @@
       "service": "uzstandart",
       "display_name": "TIMV UzStandart",
       "schedule": {
-        "every_seconds": 600
+        "every_seconds": 60
       },
       "paging": {
         "start_page": 1,

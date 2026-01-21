@@ -7,16 +7,20 @@ using System.Windows;
 using System.Windows.Input;
 using Integration.Core;
 using Integration.Services;
+using Integration.Scheduling;
 
 namespace Integration.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
+    //Начало изменений
     private readonly IEventBus _bus;
+    private readonly Action<Action> _ui;
     private readonly AgentManager _manager;
     private readonly ParametersStore _parameters;
     private readonly RuntimeStateStore _runtimeState;
-    private readonly Action<Action> _ui;
+    private readonly QuartzSchedulerService _scheduler;
+    //Конец изменений
 
     public ObservableCollection<AgentVm> Agents { get; } = new();
     public ObservableCollection<string> GlobalLogs { get; } = new();
@@ -52,17 +56,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
 
-    public MainViewModel(
-        IEventBus bus,
-        AgentManager manager,
-        ParametersStore parameters,
-        RuntimeStateStore runtimeState)
+    public MainViewModel(IEventBus bus,
+                         AgentManager manager,
+                         ParametersStore parameters,
+                         RuntimeStateStore runtimeState,
+                         QuartzSchedulerService scheduler)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         _runtimeState = runtimeState ?? throw new ArgumentNullException(nameof(runtimeState));
-
+        
         var dispatcher = Application.Current?.Dispatcher;
         _ui = dispatcher is null
             ? (Action<Action>)(a => a())
@@ -84,10 +89,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         var agents = _manager.GetAgents();
         foreach (var a in agents)
-            Agents.Add(new AgentVm(a, _manager, OpenAgentDetails));
+        {
+            var vm = new AgentVm(a, _manager, _scheduler, OpenAgentDetails);
+            Agents.Add(vm);
+
+            // первичное заполнение расписания/next-run
+            _ = vm.RefreshScheduleAsync();
+        }
 
         _bus.GlobalLogAdded += OnGlobalLogAdded;
         _bus.AgentStatusChanged += OnAgentStatusChanged;
+        _bus.AgentScheduleChanged += OnAgentScheduleChanged;
     }
 
     private void OnGlobalLogAdded(LogEntry entry)
@@ -110,6 +122,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
             vm?.ApplyStatus(status);
         });
     }
+    
+    private void OnAgentScheduleChanged(string agentId)
+    {
+        var vm = Agents.FirstOrDefault(x => x.Id.Equals(agentId, StringComparison.OrdinalIgnoreCase));
+        if (vm is null) return;
+
+        _ui(() => _ = vm.RefreshScheduleAsync());
+    }
 
     private void OpenAgentDetails(string agentId)
     {
@@ -120,6 +140,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _manager,
             _parameters,
             _runtimeState,
+            _scheduler,
             agentId,
             () => _ui(() => CurrentView = this)
         );

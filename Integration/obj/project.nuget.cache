@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "EqdlwIqCLwU=",
+  "dgSpecHash": "bQT1ng83Iqc=",
   "success": true,
   "projectFilePath": "E:\\projects\\UzEx Integration\\Github\\Integration\\Integration\\Integration.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder\\microsoft.extensions.logging.abstractions\\2.1.1\\microsoft.extensions.logging.abstractions.2.1.1.nupkg.sha512",
+    "C:\\Users\\a.kramer\\.nuget\\packages\\quartz\\3.15.1\\quartz.3.15.1.nupkg.sha512"
+  ],
   "logs": []
 }

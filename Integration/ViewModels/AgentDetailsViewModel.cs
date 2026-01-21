@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Integration.Core;
 using Integration.Models;
+using Integration.Scheduling;
 using Integration.Services;
 
 namespace Integration.ViewModels;
@@ -19,6 +20,8 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
     private readonly AgentManager _manager;
     private readonly ParametersStore _parameters;
     private readonly RuntimeStateStore _runtimeState;
+    private readonly QuartzSchedulerService _scheduler;
+    
     private readonly string _agentId;
     private readonly Action _backToMenu;
     private readonly Action<Action> _ui;
@@ -50,8 +53,12 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
     private Brush _apiStatusBrush = Brushes.Goldenrod;
     public Brush ApiStatusBrush { get => _apiStatusBrush; private set { if (Equals(_apiStatusBrush, value)) return; _apiStatusBrush = value; OnPropertyChanged(); } }
 
+    //Начало изменений
     public string NextRunText { get; private set; } = "—";
     public string ScheduleText { get; private set; } = "—";
+
+    public string TimeToNextRunText { get; private set; } = "—";
+    //Конец изменений
 
     private string _lastErrorText = "—";
     public string LastErrorText { get => _lastErrorText; private set { if (_lastErrorText == value) return; _lastErrorText = value; OnPropertyChanged(); } }
@@ -80,18 +87,22 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    //Начало изменений
     public AgentDetailsViewModel(
         IEventBus bus,
         AgentManager manager,
         ParametersStore parameters,
         RuntimeStateStore runtimeState,
+        QuartzSchedulerService scheduler,
         string agentId,
         Action backToMenu)
+        //Конец изменений
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         _runtimeState = runtimeState ?? throw new ArgumentNullException(nameof(runtimeState));
+        _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         _agentId = string.IsNullOrWhiteSpace(agentId) ? throw new ArgumentException("agentId is required", nameof(agentId)) : agentId;
         _backToMenu = backToMenu ?? throw new ArgumentNullException(nameof(backToMenu));
 
@@ -124,11 +135,12 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
 
         // первичная инициализация (параметры + runtime_state)
         RefreshFromAgent();
-
+        _ = RefreshScheduleAsync();
         // подписки
         _bus.AgentLogAdded += OnAgentLogAdded;
         _bus.AgentStatusChanged += OnAgentStatusChanged;
         _bus.AgentApiStateChanged += OnAgentApiStateChanged;
+        _bus.AgentScheduleChanged += OnAgentScheduleChanged;
     }
 
     private void RefreshFromAgent()
@@ -235,7 +247,11 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
         if (!agentId.Equals(_agentId, StringComparison.OrdinalIgnoreCase))
             return;
 
-        _ui(() => StatusText = status.ToString());
+        _ui(() =>
+        {
+            StatusText = status.ToString();
+            _ = RefreshScheduleAsync();
+        });
     }
 
     private Task StartNowAsync()
@@ -291,10 +307,53 @@ public sealed class AgentDetailsViewModel : INotifyPropertyChanged
             ApplyApiIndicatorFromRuntime();
         });
     }
+    
+    //Начало изменений
+    private void OnAgentScheduleChanged(string agentId)
+    {
+        if (!agentId.Equals(_agentId, StringComparison.OrdinalIgnoreCase))
+            return;
 
+        _ui(() => _ = RefreshScheduleAsync());
+    }
 
+    private async Task RefreshScheduleAsync()
+    {
+        var next = await _scheduler.GetNextRunAsync(_agentId).ConfigureAwait(false);
+        var desc = await _scheduler.GetScheduleDescriptionAsync(_agentId).ConfigureAwait(false);
+
+        var nextText = next.HasValue
+            ? next.Value.ToString("dd.MM.yyyy HH:mm:ss")
+            : "—";
+
+        var scheduleText = string.IsNullOrWhiteSpace(desc) ? "—" : desc;
+
+        var deltaText = "—";
+        if (next.HasValue)
+        {
+            var delta = next.Value - DateTimeOffset.Now;
+            if (delta < TimeSpan.Zero) delta = TimeSpan.Zero;
+            deltaText = $"{(int)delta.TotalHours:00}:{delta.Minutes:00}:{delta.Seconds:00}";
+        }
+
+        _ui(() =>
+        {
+            NextRunText = nextText;
+            ScheduleText = scheduleText;
+            TimeToNextRunText = deltaText;
+
+            OnPropertyChanged(nameof(NextRunText));
+            OnPropertyChanged(nameof(ScheduleText));
+            OnPropertyChanged(nameof(TimeToNextRunText));
+        });
+    }
+    
+    //Начало изменений
     // summary: ViewModel экрана деталей агента. Отвечает за отображение статуса агента, логов,
-    //          и индикаторов (API/DB), подписывается на события EventBus и читает/обновляет RuntimeStateStore
-    //          для сохранения состояния (например, API ok/error) между открытиями экрана.
+    //          индикаторов (API/DB) и данных расписания (NextRun/График/До следующего запуска),
+    //          подписывается на события EventBus и читает/обновляет RuntimeStateStore.
+    //          Расписание/NextRun получает через QuartzSchedulerService (UI не зависит от Quartz API).
+    //Конец изменений
+
 }
 
