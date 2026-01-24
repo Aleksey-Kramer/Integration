@@ -1,28 +1,52 @@
+// Integration/Services/ApiConnectionState.cs
+
+//Начало изменений
 using System;
 using Integration.Models;
 
 namespace Integration.Services;
 
+/// <summary>
+/// Runtime API connection state (mirrors runtime_state.json.api).
+/// Used for healthcheck visualization and diagnostics.
+/// </summary>
 public sealed class ApiConnectionState
 {
+    /// <summary>
+    /// API base url for diagnostics (runtime_state.json.api.base_url).
+    /// </summary>
+    public string? Base_Url { get; set; }
+
+    /// <summary>
+    /// Current API connection status (runtime_state.json.api.state).
+    /// </summary>
     public ApiConnectionStatus Status { get; set; } = ApiConnectionStatus.unknown;
 
-    // Код ошибки (для UI достаточно ToString()).
-    // Заполняем enum-ом, а не длинными текстами исключений.
-    public AgentStatusErrors ErrorCode { get; set; } = AgentStatusErrors.none;
+    /// <summary>
+    /// Human-readable status text for UI (runtime_state.json.api.text).
+    /// </summary>
+    public string Text { get; set; } = "Состояние: неизвестно";
 
-    // Тех.детали (можно логировать, но не обязательно показывать в UI).
-    public string? ErrorMessage { get; set; }
+    public DateTimeOffset? Last_Success_At_Utc { get; set; }
+    public DateTimeOffset? Last_Error_At_Utc { get; set; }
 
-    public DateTimeOffset? LastCheckedAt { get; set; }
+    public ApiErrorState Last_Error { get; set; } = new();
+}
+
+/// <summary>
+/// API error details block (runtime_state.json.api.last_error).
+/// </summary>
+public sealed class ApiErrorState
+{
+    public AgentStatusErrors? Code { get; set; }
+    public string? Kind { get; set; }
+    public string? Message { get; set; }
 }
 
 public enum ApiConnectionStatus
 {
-    unknown,    // при старте
-    ok,         // последний тик успешен
-    error       // ошибка именно API партнёра
+    unknown = 0,
+    ok = 1,
+    error = 2
 }
-
-// summary: ApiConnectionState хранит runtime-состояние подключения к внешнему API:
-//          статус (unknown/ok/error), код ошибки (enum для UI), тех.сообщение и время последней проверки.
+//Конец изменений

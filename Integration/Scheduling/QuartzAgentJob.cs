@@ -1,5 +1,5 @@
 using System;
-using System.Threading;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Integration.Core;
 using Integration.Services;
@@ -34,11 +34,12 @@ public sealed class QuartzAgentJob : IJob
         {
             bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning,
                 $"Quartz: tick skipped (unknown agent '{agentId}')."));
+
+            // даже тут просим UI обновить next-run (на случай рассинхрона)
+            bus.PublishAgentScheduleChanged(agentId);
             return;
         }
 
-        // Важно: Quartz НЕ должен форсить Resume() для paused/stopped.
-        // Агент сам решает, выполнять тик или логировать "skipped".
         var ct = context.CancellationToken;
 
         var tickCtx = new AgentTickContext
@@ -49,17 +50,45 @@ public sealed class QuartzAgentJob : IJob
             CorrelationId = Guid.NewGuid().ToString("N")
         };
 
+        var sw = Stopwatch.StartNew();
+
         try
         {
+            // (Опционально) общий старт — агент сам пишет свои "tick start", но это полезно для единообразия.
+            bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Quartz tick started: {agent.DisplayName}"));
+            bus.PublishAgent(new AgentLogEntry(agentId, DateTimeOffset.Now, LogLevel.info, $"Quartz tick started: {agent.DisplayName}"));
+
             await agent.ExecuteTickAsync(tickCtx).ConfigureAwait(false);
+
+            sw.Stop();
+
+            // ВАЖНО: это то, чего не хватало — конец тика для Quartz-пути
+            bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Quartz tick finished: {agent.DisplayName} ({sw.ElapsedMilliseconds} ms)"));
+            bus.PublishAgent(new AgentLogEntry(agentId, DateTimeOffset.Now, LogLevel.info, $"Quartz tick finished: {agent.DisplayName} ({sw.ElapsedMilliseconds} ms)"));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // cancel — нормальный сценарий при stop/shutdown
+            sw.Stop();
+            bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Quartz tick canceled: {agent.DisplayName}"));
             bus.PublishAgent(new AgentLogEntry(agentId, DateTimeOffset.Now, LogLevel.warning, "Quartz tick canceled."));
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.error,
+                $"Quartz tick error: {agent.DisplayName}. {ex.GetType().Name}: {ex.Message}"));
+
+            bus.PublishAgent(new AgentLogEntry(agentId, DateTimeOffset.Now, LogLevel.error,
+                $"Quartz tick error: {ex.GetType().Name}: {ex.Message}"));
+        }
+        finally
+        {
+            // ВАЖНО: без этого UI не узнаёт, что next-run изменился после Quartz-тика
+            bus.PublishAgentScheduleChanged(agentId);
         }
     }
 
     // summary: Quartz Job-обёртка над агентом. Вызывает agent.ExecuteTickAsync по расписанию Quartz,
     //          не изменяя статус агента (paused/stopped не форсим) и уважая CancellationToken.
+    //          Пишет "tick finished" и всегда дергает PublishAgentScheduleChanged, чтобы UI обновлял next-run/iterations.
 }

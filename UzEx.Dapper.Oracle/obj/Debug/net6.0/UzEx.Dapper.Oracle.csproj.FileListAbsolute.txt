@@ -46,3 +46,16 @@ E:\projects\farma_api\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.dll
 E:\projects\farma_api\UzEx.Dapper.Oracle\obj\Debug\net6.0\refint\UzEx.Dapper.Oracle.dll
 E:\projects\farma_api\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.pdb
 E:\projects\farma_api\UzEx.Dapper.Oracle\obj\Debug\net6.0\ref\UzEx.Dapper.Oracle.dll
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\bin\Debug\net6.0\UzEx.Dapper.Oracle.deps.json
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\bin\Debug\net6.0\UzEx.Dapper.Oracle.dll
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\bin\Debug\net6.0\UzEx.Dapper.Oracle.pdb
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.csproj.AssemblyReference.cache
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.GeneratedMSBuildEditorConfig.editorconfig
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.AssemblyInfoInputs.cache
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.AssemblyInfo.cs
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.csproj.CoreCompileInputs.cache
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.sourcelink.json
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.dll
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\refint\UzEx.Dapper.Oracle.dll
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\UzEx.Dapper.Oracle.pdb
+E:\projects\UzEx Integration\Github\Integration\UzEx.Dapper.Oracle\obj\Debug\net6.0\ref\UzEx.Dapper.Oracle.dll

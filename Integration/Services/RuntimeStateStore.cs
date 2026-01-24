@@ -2,16 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Integration.Services;
 
 public sealed class RuntimeStateStore
 {
+    //Начало изменений
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        WriteIndented = true
+        WriteIndented = true,
+        Converters =
+        {
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+        }
     };
+    //Конец изменений
 
     private readonly object _lock = new();
 
@@ -32,13 +39,14 @@ public sealed class RuntimeStateStore
         {
             if (!File.Exists(FilePath))
             {
-                _snapshot = new RuntimeStateSnapshot();
+                _snapshot = RuntimeStateSnapshot.CreateEmpty();
                 return _snapshot;
             }
 
             var json = File.ReadAllText(FilePath);
+
             _snapshot = JsonSerializer.Deserialize<RuntimeStateSnapshot>(json, JsonOptions)
-                        ?? new RuntimeStateSnapshot();
+                        ?? RuntimeStateSnapshot.CreateEmpty();
 
             return _snapshot;
         }
@@ -48,6 +56,10 @@ public sealed class RuntimeStateStore
     {
         lock (_lock)
         {
+            //Начало изменений
+            _snapshot.Updated_At_Utc = DateTimeOffset.UtcNow;
+            //Конец изменений
+
             var json = JsonSerializer.Serialize(_snapshot, JsonOptions);
             File.WriteAllText(FilePath, json);
         }
@@ -61,7 +73,7 @@ public sealed class RuntimeStateStore
         {
             if (!_snapshot.Agents.TryGetValue(agentId, out var state))
             {
-                state = new AgentRuntimeState();
+                state = AgentRuntimeState.CreateEmpty();
                 _snapshot.Agents[agentId] = state;
             }
 
@@ -75,13 +87,15 @@ public sealed class RuntimeStateStore
         {
             if (!_snapshot.Agents.TryGetValue(agentId, out var state))
             {
-                state = new AgentRuntimeState();
+                state = AgentRuntimeState.CreateEmpty();
                 _snapshot.Agents[agentId] = state;
             }
 
             mutate(state);
         }
     }
-    // summary: In-memory хранилище runtime-состояния агентов с загрузкой/сохранением JSON-файла.
-    //          Даёт GetAgent (get-or-create) и UpdateAgent (атомарная мутация под lock).
+
+    // summary: In-memory хранилище runtime-состояния агентов.
+    //          Поддерживает schema_version, updated_at_utc и string-enum JSON.
+    //          Все enum сериализуются в человекочитаемом виде (unknown/ok/error).
 }

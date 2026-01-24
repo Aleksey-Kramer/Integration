@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UzEx.Dapper.Oracle")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+66fd0cba91c81222862155722d35c0c4b340fd7e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3999ec294ab36c8e405e89a89c2dc1c2596e1405")]
 [assembly: System.Reflection.AssemblyProductAttribute("UzEx.Dapper.Oracle")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UzEx.Dapper.Oracle")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

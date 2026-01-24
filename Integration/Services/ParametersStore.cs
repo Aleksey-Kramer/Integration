@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
 namespace Integration.Services;
 
+// summary: Загрузка/хранение parameters.json. Даёт потокобезопасный snapshot (GetSnapshot),
+//          поддерживает Reload(), выполняет базовую валидацию структуры конфигурации.
 public sealed class ParametersStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -66,6 +69,7 @@ public sealed class ParametersStore
 /// <summary>
 /// Полный снимок parameters.json (минимальный набор полей под текущие задачи).
 /// </summary>
+// summary: DTO snapshot для parameters.json. Содержит секции app/http/logging, services и agents.
 public sealed class ParametersSnapshot
 {
     public AppBlock? App { get; init; }
@@ -76,22 +80,26 @@ public sealed class ParametersSnapshot
     public Dictionary<string, AgentBlock> Agents { get; init; } = new();
 }
 
+// summary: Секция app (окружение и таймзона приложения).
 public sealed class AppBlock
 {
     public string? Env { get; init; }
     public string? Timezone { get; init; }
 }
 
+// summary: Секция http (общие таймауты для HttpClient).
 public sealed class HttpBlock
 {
     public int Timeout_Seconds { get; init; } = 30;
 }
 
+// summary: Секция logging (путь к файлу логов).
 public sealed class LoggingBlock
 {
     public string? File_Path { get; init; }
 }
 
+// summary: Универсальный блок сервиса из services.<key>. Используется для API-сервисов и DB-конфигурации.
 public sealed class ServiceBlock
 {
     // общие поля под разные сервисы; конкретику достанем через наследников/спец-модели позже
@@ -113,19 +121,47 @@ public sealed class ServiceBlock
     public string? Gxp_Base_Url { get; init; }
     public string? Login { get; init; }
     public string? Password { get; init; }
+
+    //Начало изменений
+    // ===== DB (services.db) =====
+
+    /// <summary>
+    /// Шаблон строки подключения (используется, если profile.connection_string не задан).
+    /// Пример: "Data Source=(DESCRIPTION=(ADDRESS=(PROTOCOL=tcp)(HOST={Address})(PORT={Port}))(CONNECT_DATA=(SERVICE_NAME={ServiceName})));User Id={Login};Password={Password}"
+    /// </summary>
+    public string? Connection_String_Template { get; init; }
+
+    /// <summary>
+    /// Профили подключений к БД (ключ -> набор параметров/override).
+    /// </summary>
+    public Dictionary<string, DbProfileBlock>? Profiles { get; init; }
+
+    /// <summary>
+    /// Таймаут по умолчанию для DB-операций (секунды), если нужно использовать в репозиториях.
+    /// </summary>
+    public int? Default_Timeout_Seconds { get; init; }
+    //Конец изменений
 }
 
+// summary: Настройки одного агента из секции agents.<id>.
 public sealed class AgentBlock
 {
     public bool Enabled { get; init; } = true;
     public string? Service { get; init; }
     public string? Display_Name { get; init; }
 
+    //Начало изменений
+    /// <summary>
+    /// Ключ профиля БД из services.db.profiles (например "eko_test").
+    /// </summary>
+    public string? Db_Profile { get; init; }
+    //Конец изменений
+
     public ScheduleBlock? Schedule { get; init; }
     public PagingBlock? Paging { get; init; }
 }
 
-//Начало изменений
+// summary: Настройки расписания агента. Интерпретация приоритета — в Scheduling-слое.
 public sealed class ScheduleBlock
 {
     // Один из вариантов (приоритет будет обрабатываться в Scheduling-слое):
@@ -143,12 +179,40 @@ public sealed class ScheduleBlock
     /// </summary>
     public string? Daily_At { get; init; } = null;
 }
-//Конец изменений
 
-
+// summary: Настройки пагинации для агента (старт/размер страницы/лимит страниц на тик).
 public sealed class PagingBlock
 {
     public int Start_Page { get; init; } = 1;
     public int Per_Page { get; init; } = 10;
     public int Max_Pages_Per_Tick { get; init; } = 1;
 }
+
+//Начало изменений
+// summary: Профиль подключения к Oracle. Может содержать либо готовый connection_string,
+//          либо набор частей для сборки по Connection_String_Template.
+public sealed class DbProfileBlock
+{
+    /// <summary>
+    /// Отображаемое имя профиля (например "Eko").
+    /// </summary>
+    public string? Name { get; init; }
+
+    /// <summary>
+    /// Уровень/окружение (например "test" / "real") — для отображения в UI.
+    /// </summary>
+    public string? Lvl { get; init; }
+
+    /// <summary>
+    /// Готовая строка подключения (если задана — используется напрямую).
+    /// </summary>
+    public string? Connection_String { get; init; }
+
+    // parts for template build
+    public string? Address { get; init; }
+    public int? Port { get; init; }
+    public string? ServiceName { get; init; }
+    public string? Login { get; init; }
+    public string? Password { get; init; }
+}
+//Конец изменений

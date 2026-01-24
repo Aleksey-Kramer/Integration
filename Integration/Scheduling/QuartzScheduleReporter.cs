@@ -13,11 +13,8 @@ public static class QuartzScheduleReporter
         if (schedule is null)
             throw new ArgumentNullException(nameof(schedule));
 
-        //Начало изменений
-
         var triggerBuilder = TriggerBuilder.Create()
-            .WithIdentity($"{agentId}.trigger", "agents")
-            .StartNow();
+            .WithIdentity($"{agentId}.trigger", "agents");
 
         // Приоритет:
         // 1) every_seconds
@@ -27,20 +24,26 @@ public static class QuartzScheduleReporter
 
         if (schedule.Every_Seconds is > 0)
         {
-            triggerBuilder = triggerBuilder.WithSimpleSchedule(x =>
-                x.WithIntervalInSeconds(schedule.Every_Seconds.Value)
+            triggerBuilder = triggerBuilder
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInSeconds(schedule.Every_Seconds.Value)
                     .RepeatForever());
         }
         else if (schedule.Every_Minutes is > 0)
         {
-            triggerBuilder = triggerBuilder.WithSimpleSchedule(x =>
-                x.WithIntervalInMinutes(schedule.Every_Minutes.Value)
+            triggerBuilder = triggerBuilder
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(schedule.Every_Minutes.Value)
                     .RepeatForever());
         }
         else if (schedule.Every_Hours is > 0)
         {
-            triggerBuilder = triggerBuilder.WithSimpleSchedule(x =>
-                x.WithIntervalInHours(schedule.Every_Hours.Value)
+            triggerBuilder = triggerBuilder
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInHours(schedule.Every_Hours.Value)
                     .RepeatForever());
         }
         else if (!string.IsNullOrWhiteSpace(schedule.Daily_At))
@@ -49,27 +52,27 @@ public static class QuartzScheduleReporter
             if (!TimeSpan.TryParse(schedule.Daily_At, out var time))
                 throw new InvalidOperationException($"Invalid daily_at format: '{schedule.Daily_At}'");
 
+            // daily at HH:mm
             var cron = $"0 {time.Minutes} {time.Hours} ? * *";
 
+            // ВАЖНО: для cron НЕ делаем StartNow(), чтобы не было "лишнего" запуска при старте.
             triggerBuilder = triggerBuilder.WithCronSchedule(cron);
         }
         else
         {
             // fallback — защита от пустого расписания
-            triggerBuilder = triggerBuilder.WithSimpleSchedule(x =>
-                x.WithIntervalInMinutes(10)
+            triggerBuilder = triggerBuilder
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(10)
                     .RepeatForever());
         }
 
         return triggerBuilder.Build();
-
-        //Конец изменений
     }
 
     public static string Describe(ITrigger? trigger)
     {
-        //Начало изменений
-
         if (trigger is null)
             return "—";
 
@@ -91,15 +94,36 @@ public static class QuartzScheduleReporter
 
         if (trigger is ICronTrigger ct)
         {
-            // Для UI лучше показывать человекочитаемое время, а не cron-строку.
-            // Минимально: если это daily_at HH:mm (будет позже) — распарсим отдельно.
-            // Пока вернём cron string.
+            // Пытаемся распознать наш "daily_at": "0 M H ? * *"
+            if (TryParseDailyAtCron(ct.CronExpressionString, out var hhmm))
+                return $"every {hhmm}";
+
             return ct.CronExpressionString;
         }
 
         return trigger.GetType().Name;
+    }
 
-        //Конец изменений
+    private static bool TryParseDailyAtCron(string cron, out string hhmm)
+    {
+        hhmm = "";
+
+        // ожидаем: "0 M H ? * *"
+        var parts = cron.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 6)
+            return false;
+
+        if (parts[0] != "0" || parts[3] != "?" || parts[4] != "*" || parts[5] != "*")
+            return false;
+
+        if (!int.TryParse(parts[1], out var minute)) return false;
+        if (!int.TryParse(parts[2], out var hour)) return false;
+
+        if (hour < 0 || hour > 23) return false;
+        if (minute < 0 || minute > 59) return false;
+
+        hhmm = $"{hour:00}:{minute:00}";
+        return true;
     }
 
     // summary: QuartzScheduleReporter — построение Trigger из конфигурации расписания и генерация

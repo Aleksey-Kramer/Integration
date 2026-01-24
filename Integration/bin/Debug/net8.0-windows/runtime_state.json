@@ -1,49 +1,49 @@
 {
-  "schema_version": 1,
-  "updated_at_utc": "2026-01-14T10:00:00Z",
-  "agents": {
+  "Schema_Version": 1,
+  "Updated_At_Utc": "2026-01-24T13:38:15.9386731+00:00",
+  "Agents": {
     "uzstandart": {
-      "display_name": "TIMV UzStandart",
-
-      "api": {
-        "base_url": "http://10.190.7.22:55550",
-        "state": "unknown",
-        "text": "Состояние: неизвестно",
-        "last_success_at_utc": null,
-        "last_error_at_utc": null,
-        "last_error": {
-          "code": null,
-          "kind": null,
-          "message": null
+      "Api": {
+        "Base_Url": "http://10.190.7.22:55550",
+        "Status": "unknown",
+        "Text": "\u0421\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435: \u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E",
+        "Last_Success_At_Utc": "2026-01-24T12:48:15.7736878+00:00",
+        "Last_Error_At_Utc": null,
+        "Last_Error": {
+          "Code": "none",
+          "Kind": null,
+          "Message": null
         }
       },
-
-      "db": {
-        "connection_name": null,
-        "state": "unknown",
-        "text": "Состояние: неизвестно",
-        "last_success_at_utc": null,
-        "last_error_at_utc": null,
-        "last_error": {
-          "code": null,
-          "kind": null,
-          "message": null
+      "Db": {
+        "Connection_Name": "eko_test",
+        "ProfileKey": "eko_test",
+        "Db_Name": "uzexts",
+        "State": "ok",
+        "Text": "\u0421\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435: \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D",
+        "Last_Success_At_Utc": "2026-01-24T13:38:15.938533+00:00",
+        "Last_Error_At_Utc": null,
+        "Last_Error": {
+          "Code": "none",
+          "Kind": null,
+          "Message": null
         }
       },
-
-      "tick": {
-        "last_started_at_utc": null,
-        "last_finished_at_utc": null,
-        "last_duration_ms": null,
-        "last_result": "none"
+      "Tick": {
+        "Last_Started_At_Utc": null,
+        "Last_Finished_At_Utc": null,
+        "Last_Duration_Ms": null,
+        "Last_Result": "none"
       },
-
-      "progress": {
-        "iterations_total": 0,
-        "last_page": null,
-        "page_total": null,
-        "items_last_tick": null
-      }
+      "Progress": {
+        "Iterations_Total": 0,
+        "Last_Page": null,
+        "Page_Total": null,
+        "Items_Last_Tick": null
+      },
+      "LastErrorAt": "2026-01-23T16:42:05.4980455+05:00",
+      "LastErrorMessage": "db error (server_error): ORA-06550: \u0421\u0442\u0440\u043E\u043A\u0430 1, \u0441\u0442\u043E\u043B\u0431\u0435\u0446 7:\nPLS-00306: \u043E\u0448\u0438\u0431\u043E\u0447\u043D\u043E \u0447\u0438\u0441\u043B\u043E \u0438\u043B\u0438 \u0442\u0438\u043F\u044B \u0430\u0440\u0433\u0443\u043C\u0435\u043D\u0442\u043E\u0432 \u043F\u0440\u0438 \u043E\u0431\u0440\u0430\u0449\u0435\u043D\u0438\u0438 \u043A \u0027GET_DB_NAME\u0027\nORA-06550: \u0421\u0442\u0440\u043E\u043A\u0430 1, \u0441\u0442\u043E\u043B\u0431\u0435\u0446 7:\nPL/SQL: Statement ignored\r\nhttps://docs.oracle.com/error-help/db/ora-06550/",
+      "LastMessageId": null
     }
   }
 }

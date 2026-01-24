@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using Integration.Core;
 using Integration.Services;
@@ -11,10 +12,9 @@ namespace Integration.ViewModels;
 
 public sealed class AgentVm : INotifyPropertyChanged
 {
-    //Начало изменений
     private readonly AgentManager _manager;
     private readonly QuartzSchedulerService _scheduler;
-    //Конец изменений
+    private readonly Action<Action> _ui;
 
     public string Id { get; }
     public string DisplayName { get; }
@@ -23,22 +23,19 @@ public sealed class AgentVm : INotifyPropertyChanged
     public AgentStatus Status
     {
         get => _status;
-        //Начало изменений
         private set
         {
             if (_status == value) return;
             _status = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(PauseResumeText));
 
             if (PauseResumeCommand is RelayCommand pr) pr.RaiseCanExecuteChanged();
             if (StopCommand is RelayCommand st) st.RaiseCanExecuteChanged();
         }
-        //Конец изменений
     }
 
-    // Текст под статусом (Paused by user / Stopped manually / Stopped due to error)
-    // Пока не используем — оставляем задел.
     private string? _statusNote;
     public string? StatusNote
     {
@@ -51,27 +48,43 @@ public sealed class AgentVm : INotifyPropertyChanged
         }
     }
 
-    // Пока Quartz не подключен — просто заглушки, чтобы UI уже был готов.
     public string NextRunText { get; private set; } = "—";
     public string IterationsText { get; private set; } = "—";
 
-    // Команды строки
+    public string DbStatusText { get; private set; } = "DB: —";
+    public string DbNameText { get; private set; } = "—";
+
     public ICommand StartNowCommand { get; }
     public ICommand PauseResumeCommand { get; }
     public ICommand StopCommand { get; }
     public ICommand OpenDetailsCommand { get; }
 
-    //Начало изменений
     public AgentVm(IAgent agent, AgentManager manager, QuartzSchedulerService scheduler, Action<string>? openDetails)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
 
+        var dispatcher = Application.Current?.Dispatcher;
+        _ui = dispatcher is null
+            ? (Action<Action>)(a => a())
+            : (a =>
+            {
+                if (dispatcher.CheckAccess()) a();
+                else dispatcher.Invoke(a);
+            });
+
         Id = agent?.Id ?? throw new ArgumentNullException(nameof(agent));
         DisplayName = agent.DisplayName;
         Status = agent.Status;
 
-        StartNowCommand = new AsyncRelayCommand(async () => await _manager.StartNowAsync(Id));
+        // NEW: "Запуск сейчас" должен снимать с паузы
+        StartNowCommand = new AsyncRelayCommand(async () =>
+        {
+            if (Status == AgentStatus.paused)
+                _manager.Resume(Id);
+
+            await _manager.StartNowAsync(Id).ConfigureAwait(false);
+        });
 
         PauseResumeCommand = new RelayCommand(() =>
         {
@@ -85,7 +98,6 @@ public sealed class AgentVm : INotifyPropertyChanged
 
         OpenDetailsCommand = new RelayCommand(() => openDetails?.Invoke(Id));
     }
-    //Конец изменений
 
     public string StatusText => Status switch
     {
@@ -94,6 +106,9 @@ public sealed class AgentVm : INotifyPropertyChanged
         AgentStatus.stopped => "Stopped",
         _ => Status.ToString()
     };
+
+    // NEW: текст для кнопки Pause/Resume в списке
+    public string PauseResumeText => Status == AgentStatus.paused ? "Продолжить" : "Пауза";
 
     public void ApplyStatus(AgentStatus status, string? note = null)
     {
@@ -111,27 +126,59 @@ public sealed class AgentVm : INotifyPropertyChanged
         OnPropertyChanged(nameof(IterationsText));
     }
 
-    //Начало изменений
+    public void ApplyDbState(DbConnectionState? db)
+    {
+        _ui(() =>
+        {
+            if (db is null)
+            {
+                DbStatusText = "DB: —";
+                DbNameText = "—";
+            }
+            else
+            {
+                var code = db.Last_Error?.Code;
+
+                DbStatusText = db.State switch
+                {
+                    ConnectionStateKind.ok => "DB: OK",
+                    ConnectionStateKind.error => $"DB: ERROR ({code?.ToString() ?? "unknown"})",
+                    _ => "DB: —"
+                };
+
+                DbNameText = string.IsNullOrWhiteSpace(db.Db_Name) ? "—" : db.Db_Name;
+            }
+
+            OnPropertyChanged(nameof(DbStatusText));
+            OnPropertyChanged(nameof(DbNameText));
+        });
+    }
+
     public async Task RefreshScheduleAsync()
     {
-        var next = await _scheduler.GetNextRunAsync(Id).ConfigureAwait(false);
-        var desc = await _scheduler.GetScheduleDescriptionAsync(Id).ConfigureAwait(false);
+        try
+        {
+            var next = await _scheduler.GetNextRunAsync(Id).ConfigureAwait(false);
+            var desc = await _scheduler.GetScheduleDescriptionAsync(Id).ConfigureAwait(false);
 
-        var nextText = next.HasValue
-            ? next.Value.ToString("dd.MM.yyyy HH:mm:ss")
-            : "—";
+            var nextText = next.HasValue
+                ? next.Value.ToString("dd.MM.yyyy HH:mm:ss")
+                : "—";
 
-        UpdateScheduleInfo(nextText, string.IsNullOrWhiteSpace(desc) ? "—" : desc);
+            var itText = string.IsNullOrWhiteSpace(desc) ? "—" : desc;
+
+            _ui(() => UpdateScheduleInfo(nextText, itText));
+        }
+        catch
+        {
+            _ui(() => UpdateScheduleInfo("—", "—"));
+        }
     }
-    //Конец изменений
-    
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    
-    // summary: AgentVm — VM строки агента в списке. Держит статус и команды управления,
-    //          а также отображаемые данные расписания (NextRun/Iterations), получаемые через QuartzSchedulerService.
 }
 
 /// <summary>

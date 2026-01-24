@@ -6,6 +6,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Integration.Core;
 using Integration.Models;
+//Начало изменений
+using Integration.Repositories;
+//Конец изменений
 using Integration.Services;
 
 namespace Integration.Agents.UzStandart;
@@ -21,6 +24,12 @@ public sealed class UzStandartAgent : IAgent
     private readonly ParametersStore _parameters;
     private readonly UzStandartClient _client;
 
+    //Начало изменений
+    private readonly RuntimeStateStore _runtimeState;
+    private readonly DbHealthcheckRepository _dbHealthcheck;
+    private readonly string _dbProfileKey;
+    //Конец изменений
+
     private UzStandartState _state;
 
     public string Id => "uzstandart";
@@ -28,10 +37,17 @@ public sealed class UzStandartAgent : IAgent
 
     public AgentStatus Status { get; private set; } = AgentStatus.stopped;
 
-    public UzStandartAgent(ParametersStore parameters, UzStandartClient client)
+    //Начало изменений
+    public UzStandartAgent(
+        ParametersStore parameters,
+        UzStandartClient client,
+        RuntimeStateStore runtimeState,
+        DbHealthcheckRepository dbHealthcheck)
     {
         _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _runtimeState = runtimeState ?? throw new ArgumentNullException(nameof(runtimeState));
+        _dbHealthcheck = dbHealthcheck ?? throw new ArgumentNullException(nameof(dbHealthcheck));
 
         // Берём настройки из parameters.json
         var snapshot = _parameters.GetSnapshot();
@@ -41,12 +57,16 @@ public sealed class UzStandartAgent : IAgent
 
         DisplayName = agentCfg.Display_Name ?? "TIMV UzStandart";
 
+        _dbProfileKey = agentCfg.Db_Profile
+                        ?? throw new InvalidOperationException($"Agent '{Id}': db_profile is missing in parameters.json");
+
         var startPage = agentCfg.Paging?.Start_Page ?? 1;
         var perPage = agentCfg.Paging?.Per_Page ?? 10;
         var maxPagesPerTick = agentCfg.Paging?.Max_Pages_Per_Tick ?? 1;
 
         _state = new UzStandartState(startPage, perPage, maxPagesPerTick);
     }
+    //Конец изменений
 
     public void Pause()
     {
@@ -102,6 +122,9 @@ public sealed class UzStandartAgent : IAgent
         try
         {
             context.CancellationToken.ThrowIfCancellationRequested();
+
+            // DB healthcheck (cheap call) — always update runtime state (UI reads from it)
+            await RunDbHealthcheckAsync(context).ConfigureAwait(false);
 
             var (resp, raw) = await _client.GetCertificatesAsync(page, perPage, context.CancellationToken)
                 .ConfigureAwait(false);
@@ -177,6 +200,80 @@ public sealed class UzStandartAgent : IAgent
             context.EventBus.PublishAgent(new AgentLogEntry(Id, DateTimeOffset.Now, LogLevel.error, msg));
         }
     }
+
+    //Начало изменений
+    private async Task RunDbHealthcheckAsync(AgentTickContext context)
+{
+    try
+    {
+        var dbName = await _dbHealthcheck.GetDbNameAsync(_dbProfileKey).ConfigureAwait(false);
+
+        _runtimeState.UpdateAgent(Id, s =>
+        {
+            var nowUtc = DateTimeOffset.UtcNow;
+
+            // align with runtime_state.json db-block
+            s.Db.ProfileKey = _dbProfileKey;
+            s.Db.Connection_Name = _dbProfileKey; // пока так (человеческое имя можно подтянуть позже из parameters)
+            s.Db.Db_Name = dbName;
+
+            s.Db.State = ConnectionStateKind.ok;
+            s.Db.Text = "Состояние: подключен";
+
+            s.Db.Last_Success_At_Utc = nowUtc;
+            s.Db.Last_Error_At_Utc = null;
+
+            s.Db.Last_Error.Code = AgentStatusErrors.none;
+            s.Db.Last_Error.Kind = null;
+            s.Db.Last_Error.Message = null;
+        });
+
+        _runtimeState.Save();
+
+        context.EventBus.PublishAgent(new AgentLogEntry(
+            Id,
+            DateTimeOffset.Now,
+            LogLevel.info,
+            $"db ok: {_dbProfileKey} | {dbName}"
+        ));
+    }
+    catch (Exception ex)
+    {
+        var code = DbErrorMapper.Map(ex);
+
+        _runtimeState.UpdateAgent(Id, s =>
+        {
+            var nowUtc = DateTimeOffset.UtcNow;
+
+            s.Db.ProfileKey = _dbProfileKey;
+            s.Db.Connection_Name = _dbProfileKey;
+            s.Db.Db_Name = null;
+
+            s.Db.State = ConnectionStateKind.error;
+            s.Db.Text = code == AgentStatusErrors.none ? "Ошибка" : $"Ошибка: {code}";
+
+            s.Db.Last_Error_At_Utc = nowUtc;
+
+            s.Db.Last_Error.Code = code;
+            s.Db.Last_Error.Kind = ex.GetType().Name;
+            s.Db.Last_Error.Message = ex.Message;
+
+            // общий last_error_* агента
+            s.LastErrorAt = DateTimeOffset.Now;
+            s.LastErrorMessage = $"db: {ex.GetType().Name}: {ex.Message}";
+        });
+
+        _runtimeState.Save();
+
+        context.EventBus.PublishAgent(new AgentLogEntry(
+            Id,
+            DateTimeOffset.Now,
+            LogLevel.error,
+            $"db error ({code}): {ex.Message}"
+        ));
+    }
+}
+    //Конец изменений
 
     private static AgentStatusErrors MapErrorCode(Exception ex)
     {
@@ -259,4 +356,5 @@ public sealed class UzStandartAgent : IAgent
 
     // summary: Агент интеграции UzStandart. Выполняет запросы к API с пагинацией, логирует результаты
     //          и публикует явное состояние коннекта к API через EventBus (ok/error) с нормализованными кодами.
+    //          Также выполняет DB healthcheck через integration_pack.get_db_name и пишет результат в runtime_state.
 }

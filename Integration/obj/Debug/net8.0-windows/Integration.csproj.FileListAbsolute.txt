@@ -74,3 +74,15 @@ E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-win
 E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\Quartz.dll
 E:\projects\UzEx Integration\Github\Integration\Integration\obj\Debug\net8.0-windows\Integration.csproj.AssemblyReference.cache
 E:\projects\UzEx Integration\Github\Integration\Integration\obj\Debug\net8.0-windows\Integrat.B0B6ED80.Up2Date
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\Dapper.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\Newtonsoft.Json.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\Oracle.ManagedDataAccess.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\SixLabors.ImageSharp.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\System.DirectoryServices.Protocols.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\System.Security.Cryptography.Pkcs.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\runtimes\linux\lib\net8.0\System.DirectoryServices.Protocols.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\runtimes\osx\lib\net8.0\System.DirectoryServices.Protocols.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.DirectoryServices.Protocols.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Security.Cryptography.Pkcs.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\UzEx.Dapper.Oracle.dll
+E:\projects\UzEx Integration\Github\Integration\Integration\bin\Debug\net8.0-windows\UzEx.Dapper.Oracle.pdb

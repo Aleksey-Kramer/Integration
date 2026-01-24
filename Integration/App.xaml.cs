@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Windows;
+using Integration.Agents.Template; // ДОБАВИЛ
 using Integration.Agents.UzStandart;
 using Integration.Core;
+using Integration.Repositories;
 using Integration.Services;
 using Integration.Scheduling;
 using Integration.ViewModels;
@@ -20,6 +22,9 @@ public partial class App : Application
 
     public static HttpClientProvider Http { get; private set; } = null!;
 
+    public static DbConnectionFactory DbConnections { get; private set; } = null!;
+    public static DbHealthcheckRepository DbHealthcheck { get; private set; } = null!;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         try
@@ -33,13 +38,43 @@ public partial class App : Application
             Http = new HttpClientProvider(Parameters);
             AgentManager = new AgentManager(EventBus);
 
+            // DB services
+            DbConnections = new DbConnectionFactory(Parameters);
+            DbHealthcheck = new DbHealthcheckRepository(DbConnections);
+
             // 2) agents (register first)
             var uzClient = new UzStandartClient(Http);
-            var uzAgent = new UzStandartAgent(Parameters, uzClient);
+
+            var uzAgent = new UzStandartAgent(
+                Parameters,
+                uzClient,
+                RuntimeState,
+                DbHealthcheck
+            );
 
             // если агент по умолчанию stopped — активируем
             uzAgent.Activate();
             AgentManager.Register(uzAgent);
+
+            // =========================
+            // TEMPLATE AGENT (DISABLED)
+            // =========================
+            // ДОБАВИЛ: заготовку регистрации TemplateAgent, НО ОСТАВИЛ ЗАКОММЕНТИРОВАННОЙ,
+            // чтобы TemplateAgent не был виден в UI и не запускался.
+            /*
+            // var snap = Parameters.GetSnapshot();
+            // if (snap.Agents.TryGetValue("template", out var cfg) && cfg.Enabled)
+            // {
+            //     var templateHttp = Http.GetClient("template");
+            //     var templateClient = new TemplateClient(templateHttp);
+            //     var templateRepository = new TemplateRepository();
+            //     var templateService = new TemplateService(templateClient, templateRepository);
+            //     var templateAgent = new TemplateAgent(Parameters, templateService, RuntimeState);
+            //
+            //     templateAgent.Activate();
+            //     AgentManager.Register(templateAgent);
+            // }
+            */
 
             // 3) Quartz: создаём сервис, регистрируем job'ы и стартуем scheduler
             // ВАЖНО: QuartzAgentJob читает AgentManager и EventBus из SchedulerContext

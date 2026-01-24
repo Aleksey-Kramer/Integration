@@ -49,11 +49,24 @@ public sealed class AgentManager
     // Control: Single agent
     // -------------------------
 
-    public async Task StartNowAsync(string agentId)
+    /// <summary>
+    /// Manual запуск: должен "вытаскивать" из paused (Resume) и выполнять тик.
+    /// stopped — по-прежнему не запускаем (чтобы не "воскрешать" агента без явного Resume).
+    /// </summary>
+    public Task StartNowAsync(string agentId)
+        => RunTickAsync(agentId, externalToken: null, source: "manual", forceResumeIfPaused: true);
+
+    /// <summary>
+    /// Запуск из Quartz: уважает paused/stopped (не меняет статус).
+    /// </summary>
+    public Task ExecuteScheduledAsync(string agentId, CancellationToken quartzToken)
+        => RunTickAsync(agentId, externalToken: quartzToken, source: "quartz", forceResumeIfPaused: false);
+
+    private async Task RunTickAsync(string agentId, CancellationToken? externalToken, string source, bool forceResumeIfPaused)
     {
         if (!TryGetAgent(agentId, out var agent) || agent is null)
         {
-            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"StartNow: unknown agent '{agentId}'"));
+            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"{source}: unknown agent '{agentId}'"));
             return;
         }
 
@@ -62,36 +75,47 @@ public sealed class AgentManager
         // Do not allow overlapping ticks
         if (!rt.TryEnterTick())
         {
-            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"StartNow ignored (already running): {agent.DisplayName}"));
+            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"{source}: ignored (already running): {agent.DisplayName}"));
             return;
         }
 
+        CancellationTokenSource? linkedCts = null;
+
         try
         {
-            // If agent is stopped, StartNow still runs one tick (по твоей логике можно запретить — скажешь).
-            /*if (agent.Status == AgentStatus.paused)
-            {
-                _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"StartNow while paused: {agent.DisplayName}"));
-            }
-            if (agent.Status == AgentStatus.stopped)
-            {
-                _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"StartNow while stopped: {agent.DisplayName}"));
-            }*/
-            
-            //Начало изменений
-
-            // IMPORTANT: StartNow НЕ должен менять статус агента.
-            // - Ручной запуск может быть отдельной командой пользователя.
-            // - Quartz Job должен уважать paused/stopped и не "воскрешать" агента.
-            // Если хочешь иной сценарий для ручного запуска — разделим методы: StartNowAsync(forceResume: true/false).
+            // paused
             if (agent.Status == AgentStatus.paused)
             {
-                _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Tick skipped (paused): {agent.DisplayName}"));
-                _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.warning, "Tick skipped: agent is paused."));
-                _bus.PublishAgentScheduleChanged(agent.Id);
-                return;
+                if (forceResumeIfPaused)
+                {
+                    agent.Resume();
+                    _bus.PublishAgentStatus(agent.Id, agent.Status);
+                    _bus.PublishAgentScheduleChanged(agent.Id);
+                    _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Resumed by StartNow: {agent.DisplayName}"));
+                }
+                else
+                {
+                    _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Tick skipped (paused): {agent.DisplayName}"));
+                    _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.warning, "Tick skipped: agent is paused."));
+                    _bus.PublishAgentScheduleChanged(agent.Id);
+                    return;
+                }
+                if (string.Equals(source, "manual", StringComparison.OrdinalIgnoreCase))
+                {
+                    agent.Resume();
+                    _bus.PublishAgentStatus(agent.Id, agent.Status);
+                    _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Resumed by StartNow: {agent.DisplayName}"));
+                }
+                else
+                {
+                    _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Tick skipped (paused): {agent.DisplayName}"));
+                    _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.warning, "Tick skipped: agent is paused."));
+                    _bus.PublishAgentScheduleChanged(agent.Id);
+                    return;
+                }
             }
 
+            // stopped — не выполняем
             if (agent.Status == AgentStatus.stopped)
             {
                 _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Tick skipped (stopped): {agent.DisplayName}"));
@@ -100,17 +124,18 @@ public sealed class AgentManager
                 return;
             }
 
-            var cts = new CancellationTokenSource();
-            rt.SetCurrentTickCts(cts);
+            linkedCts = externalToken.HasValue
+                ? CancellationTokenSource.CreateLinkedTokenSource(externalToken.Value)
+                : new CancellationTokenSource();
 
-            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Tick started: {agent.DisplayName}"));
+            rt.SetCurrentTickCts(linkedCts);
+
+            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Tick started [{source}]: {agent.DisplayName}"));
             _bus.PublishAgentStatus(agent.Id, agent.Status);
-
-            //Конец изменений
 
             var ctx = new AgentTickContext
             {
-                CancellationToken = cts.Token,
+                CancellationToken = linkedCts.Token,
                 EventBus = _bus,
                 StartedAt = DateTimeOffset.UtcNow,
                 CorrelationId = Guid.NewGuid().ToString("N")
@@ -118,46 +143,29 @@ public sealed class AgentManager
 
             await agent.ExecuteTickAsync(ctx).ConfigureAwait(false);
 
-            //Начало изменений
-            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Tick finished: {agent.DisplayName}"));
-            _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.info, $"Tick finished: {agent.DisplayName}"));
-
-            // после завершения тика next-run в Quartz сдвинулся → просим UI обновиться
+            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Tick finished [{source}]: {agent.DisplayName}"));
+            _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.info, $"Tick finished [{source}]: {agent.DisplayName}"));
             _bus.PublishAgentScheduleChanged(agent.Id);
-            //Конец изменений
         }
         catch (OperationCanceledException)
         {
-            //Начало изменений
-            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Tick cancelled: {agent.DisplayName}"));
-            _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.warning, $"Tick cancelled: {agent.DisplayName}"));
-
-            // даже при cancel — next-run мог измениться (особенно при misfire/коалесценции)
+            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.warning, $"Tick cancelled [{source}]: {agent.DisplayName}"));
+            _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.warning, $"Tick cancelled [{source}]: {agent.DisplayName}"));
             _bus.PublishAgentScheduleChanged(agent.Id);
-            //Конец изменений
-
         }
         catch (Exception ex)
         {
-            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.error, $"Tick error: {agent.DisplayName}. {ex.GetType().Name}: {ex.Message}"));
-            _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.error, $"Tick error: {agent.DisplayName}. {ex.GetType().Name}: {ex.Message}"));
-            // Базовое безопасное поведение: остановить агента при необработанной ошибке.
-            // Если хочешь иной сценарий (оставлять active/paused) — скажи.
-            //Начало изменений
+            _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.error, $"Tick error [{source}]: {agent.DisplayName}. {ex.GetType().Name}: {ex.Message}"));
+            _bus.PublishAgent(new AgentLogEntry(agent.Id, DateTimeOffset.Now, LogLevel.error, $"Tick error [{source}]: {agent.DisplayName}. {ex.GetType().Name}: {ex.Message}"));
+
             try
             {
                 agent.Stop();
                 _bus.PublishAgentApiStateChanged(agent.Id, ApiConnectionStatus.unknown, errorCode: null, errorMessage: null);
                 _bus.PublishAgentStatus(agent.Id, agent.Status);
-
-                // статус изменился → UI должен перечитать расписание/next-run
                 _bus.PublishAgentScheduleChanged(agent.Id);
             }
-            catch
-            {
-                // ignore secondary failures
-            }
-            //Конец изменений
+            catch { /* ignore */ }
         }
         finally
         {
@@ -169,12 +177,11 @@ public sealed class AgentManager
     public void Pause(string agentId)
     {
         if (!TryGetAgent(agentId, out var agent) || agent is null) return;
-        //Начало изменений
+
         agent.Pause();
         _bus.PublishAgentStatus(agent.Id, agent.Status);
         _bus.PublishAgentScheduleChanged(agent.Id);
         _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, $"Paused: {agent.DisplayName}"));
-        //Конец изменений
     }
 
     public void Resume(string agentId)
@@ -218,6 +225,7 @@ public sealed class AgentManager
             _bus.PublishAgentStatus(agent.Id, agent.Status);
             _bus.PublishAgentScheduleChanged(agent.Id);
         }
+
         _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, "Paused all agents."));
     }
 
@@ -257,9 +265,6 @@ public sealed class AgentManager
 
         _bus.PublishGlobal(new LogEntry(DateTimeOffset.Now, LogLevel.info, "Stopped all agents."));
     }
-    
-    // summary: Оркестратор агентов. Регистрирует агентов, управляет их жизненным циклом,
-    //          предотвращает параллельные тики, умеет cancel текущего тика и публикует логи/статусы через EventBus.
 
     // -------------------------
     // Internal runtime helper
@@ -278,7 +283,6 @@ public sealed class AgentManager
 
         public void SetCurrentTickCts(CancellationTokenSource cts)
         {
-            // replace any old CTS defensively
             var old = Interlocked.Exchange(ref _currentTickCts, cts);
             try { old?.Dispose(); } catch { /* ignore */ }
         }
@@ -291,15 +295,8 @@ public sealed class AgentManager
 
         public void CancelCurrentTick()
         {
-            try
-            {
-                _currentTickCts?.Cancel();
-            }
-            catch
-            {
-                // ignore
-            }
+            try { _currentTickCts?.Cancel(); }
+            catch { /* ignore */ }
         }
     }
-
 }

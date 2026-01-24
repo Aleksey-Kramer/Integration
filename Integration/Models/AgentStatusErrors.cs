@@ -14,6 +14,12 @@ public enum AgentStatusErrors
     api_rate_limited,         // 429
     api_server_error,         // 5xx
 
+    // --- DB / Oracle ---
+    timeout,                  // DB timeout / network (используется DbErrorMapper)
+    connection_failed,        // DB connection failed (используется DbErrorMapper)
+    unauthorized,             // DB invalid credentials (используется DbErrorMapper)
+    server_error,             // DB server-side error (используется DbErrorMapper)
+
     // --- Данные ---
     data_empty,               // ответ корректный, но данных нет
     data_parse_error,         // JSON/XML не парсится
@@ -27,3 +33,7 @@ public enum AgentStatusErrors
     // --- Не классифицировано ---
     unknown
 }
+
+// summary: Нормализованные коды ошибок для UI/runtime.
+//          Включает домены API, DB(Oracle), данные и внутренние ошибки агента.
+//          ВАЖНО: timeout/connection_failed/unauthorized/server_error используются DbErrorMapper.

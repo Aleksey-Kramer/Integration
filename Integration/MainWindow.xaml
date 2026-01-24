@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Integration"
         xmlns:vm="clr-namespace:Integration.ViewModels"
+        xmlns:behaviors="clr-namespace:Integration.Behaviors"
         mc:Ignorable="d"
         Title="Integration"
         Width="1600" Height="900"
@@ -211,14 +212,14 @@
             <Setter Property="Margin" Value="0,2"/>
         </Style>
 
-        
+
         <!-- ====== Details page (AgentDetailsViewModel) ====== -->
         <DataTemplate DataType="{x:Type vm:AgentDetailsViewModel}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>  <!-- top -->
-                    <RowDefinition Height="*"/>     <!-- content -->
-                    <RowDefinition Height="Auto"/>  <!-- bottom buttons -->
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- Top -->
@@ -254,12 +255,12 @@
                 <!-- Content -->
                 <Grid Grid.Row="1">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>  <!-- connections -->
-                        <RowDefinition Height="Auto"/>  <!-- metrics -->
-                        <RowDefinition Height="*"/>     <!-- logs -->
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Connections (DB/API) -->
+                    <!-- Connections -->
                     <Grid Grid.Row="0" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="240"/>
@@ -272,14 +273,20 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
+                        <!-- DB -->
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Подключение к:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
                         <Border Grid.Row="0" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding DbConnectionName}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
                         </Border>
-                        <Border Grid.Row="0" Grid.Column="2" Height="38" CornerRadius="10" Background="{StaticResource BrushActive}" VerticalAlignment="Center">
+                        <Border Grid.Row="0" Grid.Column="2"
+                                Height="38"
+                                CornerRadius="10"
+                                Background="{Binding DbStatusBrush}"
+                                VerticalAlignment="Center">
                             <TextBlock Text="{Binding DbStatusText}" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
 
+                        <!-- API -->
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Подключение к:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
                         <Border Grid.Row="2" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding ApiBaseUrl}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
@@ -297,7 +304,7 @@
                         </Border>
                     </Grid>
 
-                    <!-- Metrics / fields -->
+                    <!-- Metrics -->
                     <Grid Grid.Row="1" Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="240"/>
@@ -318,24 +325,26 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="До следующего запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Следующий запуск:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding NextRunText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="График запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ScheduleText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="До следующего запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TimeToNextRunText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Время последнего сбоя:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding LastErrorText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="График запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ScheduleText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
 
-                        <!-- INN + запуск -->
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="ИНН для запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
-                        <Border Grid.Row="6" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Время последнего сбоя:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding LastErrorText}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="ИНН для запуска:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="8" Grid.Column="1" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
                             <TextBox Text="{Binding InnForRun, UpdateSourceTrigger=PropertyChanged}"
                                      BorderThickness="0"
                                      Background="Transparent"
                                      VerticalContentAlignment="Center"/>
                         </Border>
-                        <Border Grid.Row="6" Grid.Column="2" Height="38" CornerRadius="10" Background="{StaticResource BrushActive}" VerticalAlignment="Center">
+                        <Border Grid.Row="8" Grid.Column="2" Height="38" CornerRadius="10" Background="{StaticResource BrushActive}" VerticalAlignment="Center">
                             <Button Content="Запустить"
                                     Background="Transparent"
                                     BorderThickness="0"
@@ -344,19 +353,17 @@
                                     Command="{Binding RunByInnCommand}"/>
                         </Border>
 
-                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Последний message_id:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
-                        <Border Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
+                        <TextBlock Grid.Row="10" Grid.Column="0" Text="Последний message_id:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Height="38" CornerRadius="10" Background="#FFFFFF" Padding="12,0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding LastMessageId}" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
                         </Border>
-
-                        <TextBlock Grid.Row="10" Grid.Column="0" Text="Функции агента:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding FunctionDescription}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- Logs -->
-                    <Border Grid.Row="2"
-                            Style="{StaticResource LogPanelBorder}">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <!-- Logs (DETAILS) -->
+                    <Border Grid.Row="2" Style="{StaticResource LogPanelBorder}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      behaviors:AutoScrollBehavior.Enabled="True">
                             <ItemsControl ItemsSource="{Binding Logs}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -391,7 +398,14 @@
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" Style="{StaticResource PillButtonRed}" Height="56" FontSize="20" Content="Стоп" Command="{Binding StopCommand}"/>
-                    <Button Grid.Column="2" Style="{StaticResource PillButtonOrange}" Height="56" FontSize="20" Content="Пауза" Command="{Binding PauseCommand}"/>
+
+                    <Button Grid.Column="2"
+                            Style="{StaticResource PillButtonOrange}"
+                            Height="56"
+                            FontSize="20"
+                            Content="{Binding PauseResumeText}"
+                            Command="{Binding PauseResumeCommand}"/>
+
                     <Button Grid.Column="4" Style="{StaticResource PillButtonBlue}" Height="56" FontSize="20" Content="Запуск сейчас" Command="{Binding StartNowCommand}"/>
                     <Button Grid.Column="6" Style="{StaticResource PillButtonBlue}" Height="56" FontSize="20" Content="Перезапуск" Command="{Binding RestartCommand}"/>
                 </Grid>
@@ -402,19 +416,19 @@
         <DataTemplate DataType="{x:Type vm:MainViewModel}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>      <!-- table -->
-                    <RowDefinition Height="18"/>     <!-- spacing -->
-                    <RowDefinition Height="Auto"/>   <!-- log panel -->
-                    <RowDefinition Height="20"/>     <!-- spacing -->
-                    <RowDefinition Height="Auto"/>   <!-- bottom buttons -->
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="18"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- ====== Agents table ====== -->
                 <Grid Grid.Row="0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- header -->
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="8"/>
-                        <RowDefinition Height="*"/>    <!-- items -->
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
                     <!-- header row -->
@@ -438,7 +452,7 @@
 
                     <Border Grid.Row="1" Style="{StaticResource RowSeparator}"/>
 
-                    <!-- table items -->
+                    <!-- items -->
                     <ItemsControl Grid.Row="2" ItemsSource="{Binding Agents}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -458,7 +472,6 @@
                                             <ColumnDefinition Width="1.0*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Agent name (click -> details) -->
                                         <Button Grid.Column="0"
                                                 Style="{StaticResource AgentNameButton}"
                                                 Command="{Binding OpenDetailsCommand}">
@@ -467,7 +480,6 @@
                                                        HorizontalAlignment="Center"/>
                                         </Button>
 
-                                        <!-- Status pill -->
                                         <Border Grid.Column="1">
                                             <Border.Style>
                                                 <Style TargetType="Border" BasedOn="{StaticResource PillLabel}">
@@ -489,23 +501,19 @@
                                             <TextBlock Text="{Binding StatusText}" Style="{StaticResource PillLabelText}"/>
                                         </Border>
 
-                                        <!-- Next run pill -->
                                         <Border Grid.Column="2" Style="{StaticResource PillLabel}" Background="{StaticResource BrushPaused}">
                                             <TextBlock Text="{Binding NextRunText}" Style="{StaticResource PillLabelText}"/>
                                         </Border>
 
-                                        <!-- Iterations pill -->
                                         <Border Grid.Column="3" Style="{StaticResource PillLabel}" Background="{StaticResource BrushPaused}">
                                             <TextBlock Text="{Binding IterationsText}" Style="{StaticResource PillLabelText}"/>
                                         </Border>
 
-                                        <!-- Stop button per agent -->
                                         <Button Grid.Column="4"
                                                 Style="{StaticResource PillButtonRed}"
                                                 Content="Остановка"
                                                 Command="{Binding StopCommand}"/>
 
-                                        <!-- Info icon -->
                                         <Button Grid.Column="5"
                                                 Style="{StaticResource InfoIconButton}"
                                                 Command="{Binding OpenDetailsCommand}"/>
@@ -524,7 +532,9 @@
                         MaxHeight="320"
                         Style="{StaticResource LogPanelBorder}"
                         Margin="36,0,36,0">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  behaviors:AutoScrollBehavior.Enabled="True">
                         <ItemsControl ItemsSource="{Binding GlobalLogs}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -535,7 +545,7 @@
                     </ScrollViewer>
                 </Border>
 
-                <!-- ====== Bottom global buttons ====== -->
+                <!-- Bottom buttons -->
                 <Grid Grid.Row="4" Margin="36,0,36,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2.2*"/>
@@ -588,7 +598,6 @@
                 Padding="28"
                 BorderBrush="{StaticResource CardStroke}"
                 BorderThickness="1">
-
             <ContentControl Content="{Binding CurrentView}"/>
         </Border>
     </Grid>
